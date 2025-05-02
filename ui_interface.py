@@ -31,8 +31,10 @@ class UserInterface(ctk.CTk):
         self.current_operation = None # لتتبع نوع العملية الحالية ('fetch' أو 'download') To track current operation ('fetch' or 'download')
 
         # --- إعداد النافذة --- Window Setup ---
-        self.title("Modular Downloader") # تغيير العنوان Title change
-        self.geometry("750x650") # تحديد الأبعاد Dimensions
+        self.title("Advanced Downloader") # تغيير العنوان Title change
+        # -- START Phase 1 Change: Increase window size --
+        self.geometry("850x750") # زيادة الأبعاد Dimensions increased
+        # -- END Phase 1 Change --
         ctk.set_appearance_mode("System") # الوضع الداكن/الفاتح حسب النظام System theme mode
         ctk.set_default_color_theme("blue") # تحديد الثيم اللوني Color theme
 
@@ -96,9 +98,7 @@ class UserInterface(ctk.CTk):
     def _enter_idle_state(self):
         """إعادة تعيين الواجهة للحالة الأولية."""
         """Resets the UI to the initial state."""
-        self.top_frame_widget.enable_fetch()
-        self.options_frame_widget.enable()
-        self.path_frame_widget.enable()
+        self._extracted_from__enter_info_fetched_state_4()
         self.bottom_controls_widget.disable_download(button_text="Download")
         self.bottom_controls_widget.hide_cancel_button()
 
@@ -129,9 +129,7 @@ class UserInterface(ctk.CTk):
         """حالة الواجهة بعد جلب المعلومات بنجاح."""
         """UI state after info fetched successfully."""
         print(f"UI_Interface: Entering info fetched state. Playlist mode: {is_playlist_mode}")
-        self.top_frame_widget.enable_fetch() # السماح بإعادة الجلب Allow re-fetch
-        self.options_frame_widget.enable() # تمكين الخيارات Enable options
-        self.path_frame_widget.enable()    # تمكين التصفح Enable browse
+        self._extracted_from__enter_info_fetched_state_4()
         self.bottom_controls_widget.hide_cancel_button() # إخفاء الإلغاء Hide cancel
 
         # تمكين زر التحميل فقط إذا تم اختيار مسار حفظ
@@ -164,6 +162,12 @@ class UserInterface(ctk.CTk):
              self.playlist_selector_widget.grid_remove()
 
         self.update_idletasks() # فرض تحديث الواجهة Force UI update
+
+    # TODO Rename this here and in `_enter_idle_state` and `_enter_info_fetched_state`
+    def _extracted_from__enter_info_fetched_state_4(self):
+        self.top_frame_widget.enable_fetch()
+        self.options_frame_widget.enable()
+        self.path_frame_widget.enable()
 
     def _enter_downloading_state(self):
         """حالة الواجهة أثناء التحميل الفعلي."""
@@ -207,7 +211,6 @@ class UserInterface(ctk.CTk):
             return
 
         # إعادة تعيين الأجزاء الديناميكية قبل البدء Reset dynamic parts before starting
-        # (يمكن تحسين هذا بجعل _enter_idle_state أكثر تحديدًا) (Could be refined by making _enter_idle_state more specific)
         self._enter_idle_state()
         self.top_frame_widget.set_url(url) # إعادة وضع الرابط Re-set the URL
 
@@ -223,9 +226,12 @@ class UserInterface(ctk.CTk):
         """
         if self.fetched_info:
              is_playlist_mode = self.options_frame_widget.get_playlist_mode()
-             is_actually_playlist = self.fetched_info and 'entries' in self.fetched_info
+             # التحقق من أن المعلومات المجوبة هي بالفعل قائمة تشغيل
+             # Check if the fetched info is actually a playlist
+             is_actually_playlist = isinstance(self.fetched_info.get('entries'), list)
+
              if is_playlist_mode and not is_actually_playlist:
-                  print("UI_Interface: Cannot enter playlist mode: Fetched info has no 'entries'.")
+                  print("UI_Interface: Cannot enter playlist mode: Fetched info is not a playlist.")
                   self.options_frame_widget.set_playlist_mode(False) # إجبار على الإيقاف Force off
                   self._enter_info_fetched_state(False) # إعادة العرض كفيديو مفرد Re-render as single video
              else:
@@ -239,7 +245,7 @@ class UserInterface(ctk.CTk):
         # الحصول على القيم من المكونات المختصة Get values from dedicated components
         url = self.top_frame_widget.get_url()
         save_path = self.path_frame_widget.get_path()
-        format_choice = self.options_frame_widget.get_format_choice()
+        format_choice = self.options_frame_widget.get_format_choice() # <--- سيحتوي الآن على الأسماء الجديدة This will now contain the new names
         is_playlist = self.options_frame_widget.get_playlist_mode()
 
         # --- التحقق الأساسي --- Basic Validation ---
@@ -251,14 +257,14 @@ class UserInterface(ctk.CTk):
         # --- الحصول على التحديدات الديناميكية --- Get Dynamic Selections ---
         quality_format_id = None
         playlist_items_string = None
-        is_actually_playlist = self.fetched_info and 'entries' in self.fetched_info
+        is_actually_playlist = isinstance(self.fetched_info.get('entries'), list)
 
         if is_playlist and is_actually_playlist:
             playlist_items_string = self.playlist_selector_widget.get_selected_items_string()
             if not playlist_items_string:
                  messagebox.showwarning("Warning", "No playlist items selected for download.")
                  return
-            quality_format_id = None # استخدام الصيغة العامة للقائمة Use general format for playlist
+            quality_format_id = None # استخدام الصيغة العامة للقائمة (سيتم التعامل معها في المرحلة 2) Use general format for playlist (will be handled in Phase 2)
         else:
             quality_format_id = self.quality_selector_widget.get_selected_id()
 
@@ -266,6 +272,7 @@ class UserInterface(ctk.CTk):
         self.current_operation = 'download' # تحديد نوع العملية Set operation type
         self._enter_downloading_state() # الدخول لحالة التحميل Enter downloading state
         if self.logic: # التأكد من وجود المنطق Check for logic handler
+            # تمرير format_choice كما هو الآن Passing format_choice as is for now
             self.logic.start_download(url, save_path, format_choice, quality_format_id, is_playlist, playlist_items_string)
 
     def cancel_operation_ui(self):
@@ -305,7 +312,7 @@ class UserInterface(ctk.CTk):
         def _update():
             self.fetched_info = info_dict # تخزين المعلومات Store info
             is_playlist_mode_requested = self.options_frame_widget.get_playlist_mode()
-            is_actually_playlist = info_dict is not None and 'entries' in info_dict and isinstance(info_dict['entries'], list)
+            is_actually_playlist = info_dict is not None and isinstance(info_dict.get('entries'), list)
 
             # تحديد وضع العرض النهائي Determine final display mode
             final_playlist_mode = False
@@ -348,7 +355,7 @@ class UserInterface(ctk.CTk):
                 if self.fetched_info:
                     # محاولة استعادة حالة عرض المعلومات Restore info fetched state if possible
                     is_playlist_mode = self.options_frame_widget.get_playlist_mode()
-                    is_actually_playlist = 'entries' in self.fetched_info and isinstance(self.fetched_info['entries'], list)
+                    is_actually_playlist = isinstance(self.fetched_info.get('entries'), list)
                     final_playlist_mode = is_playlist_mode and is_actually_playlist
                     self._enter_info_fetched_state(final_playlist_mode) # إعادة تطبيق الحالة Reapply state
                 else:
@@ -360,7 +367,7 @@ class UserInterface(ctk.CTk):
                 # إعادة تطبيق الحالة للتأكد من تمكين الأزرار Reapply state to ensure buttons are enabled
                 if self.fetched_info:
                     is_playlist_mode = self.options_frame_widget.get_playlist_mode()
-                    is_actually_playlist = 'entries' in self.fetched_info and isinstance(self.fetched_info['entries'], list)
+                    is_actually_playlist = isinstance(self.fetched_info.get('entries'), list)
                     final_playlist_mode = is_playlist_mode and is_actually_playlist
                     self._enter_info_fetched_state(final_playlist_mode)
                 else:

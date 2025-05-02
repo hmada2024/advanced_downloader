@@ -24,12 +24,22 @@ class OptionsControlFrame(ctk.CTkFrame):
         self.grid_columnconfigure(3, weight=0) # عمود المفتاح لا يتمدد Switch column doesn't expand
 
         # إنشاء وعرض العناصر Create and grid the widgets
-        self.format_label = ctk.CTkLabel(self, text="Default Format:")
+        self.format_label = ctk.CTkLabel(self, text="Download Format:") # تم تغيير النص قليلاً Text slightly changed
         self.format_label.grid(row=0, column=0, padx=(0,5), pady=5, sticky="w")
 
-        self.format_combobox = ctk.CTkComboBox(self, values=["Video (mp4, Best)", "Audio (mp3)"], width=180)
+        # -- START Phase 1 Change: Update format options --
+        new_format_options = [
+            "Best Quality MP4 (<= 1080p+)", # اسم وصفي للخيار الأعلى Descriptive name for highest
+            "Best Quality MP4 (<= 720p)",
+            "Best Quality MP4 (<= 480p)",
+            "Best Quality MP4 (<= 360p)",
+            "Best Audio (MP3)"
+        ]
+        self.format_combobox = ctk.CTkComboBox(self, values=new_format_options, width=220) # زيادة العرض قليلاً Increased width slightly
+        self.format_combobox.set(new_format_options[0]) # القيمة الافتراضية Default value updated
+        # -- END Phase 1 Change --
+
         self.format_combobox.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
-        self.format_combobox.set("Video (mp4, Best)") # القيمة الافتراضية Default value
 
         self.playlist_label = ctk.CTkLabel(self, text="Is Playlist?")
         self.playlist_label.grid(row=0, column=2, padx=(20, 5), pady=5, sticky="e")
@@ -57,12 +67,14 @@ class OptionsControlFrame(ctk.CTkFrame):
 
     def enable(self):
         """تمكين عناصر التحكم."""
-        """Enables the controls."""
-        self.format_combobox.configure(state="normal")
-        self.playlist_switch.configure(state="normal")
+        self._extracted_from_disable_3("""Enables the controls.""", "normal")
 
     def disable(self):
         """تعطيل عناصر التحكم."""
-        """Disables the controls."""
-        self.format_combobox.configure(state="disabled")
-        self.playlist_switch.configure(state="disabled")
+        self._extracted_from_disable_3("""Disables the controls.""", "disabled")
+
+    # TODO Rename this here and in `enable` and `disable`
+    def _extracted_from_disable_3(self, arg0, state):
+        arg0
+        self.format_combobox.configure(state=state)
+        self.playlist_switch.configure(state=state)
