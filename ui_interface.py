@@ -212,19 +212,16 @@ class UserInterface(ctk.CTk):
 
     def browse_path(self):
         """فتح مربع حوار لاختيار مجلد الحفظ."""
-        directory = filedialog.askdirectory()
-        if directory:
+        if directory := filedialog.askdirectory():
             self.path_entry.configure(state="normal")
             self.path_entry.delete(0, "end")
             self.path_entry.insert(0, directory)
             self.path_entry.configure(state="readonly")
             # تمكين زر التحميل إذا كانت الشروط الأخرى متحققة
             if self.fetched_info and self.download_button.cget("state") == "disabled":
-                 is_playlist_mode = self.playlist_switch_var.get() == "on"
-                 is_actually_playlist = self.fetched_info and 'entries' in self.fetched_info
-                 if (not (is_playlist_mode and is_actually_playlist)) or \
-                    (is_playlist_mode and is_actually_playlist): # يكفي أن تكون قائمة ليتم التمكين
-                      self.download_button.configure(state="normal", text="Download Selection")
+                is_playlist_mode = self.playlist_switch_var.get() == "on"
+                is_actually_playlist = self.fetched_info and 'entries' in self.fetched_info
+                self.download_button.configure(state="normal", text="Download Selection")
 
     def fetch_video_info(self):
         """بدء عملية جلب المعلومات للرابط المدخل."""
