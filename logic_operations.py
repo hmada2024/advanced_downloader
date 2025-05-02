@@ -166,7 +166,6 @@ class Downloader:
             'ignoreerrors': self.is_playlist,
             'postprocessor_hooks': [],
             'merge_output_format': 'mp4',
-            'restrictfilenames': True,
         }
         # --- END Phase 1 Change ---
 
