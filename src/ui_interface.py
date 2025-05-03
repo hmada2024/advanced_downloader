@@ -158,8 +158,7 @@ class UserInterface(ctk.CTk):
 
     # --- معالجات الأحداث ---
     def browse_path_logic(self):
-        directory = filedialog.askdirectory(title="Select Download Folder")
-        if directory:
+        if directory := filedialog.askdirectory(title="Select Download Folder"):
             self.path_frame_widget.set_path(directory)
             if self.fetched_info and self.bottom_controls_widget.download_button.cget("state") == "disabled":
                  self.bottom_controls_widget.enable_download(button_text="Download Selection")
@@ -247,9 +246,12 @@ class UserInterface(ctk.CTk):
 
     def on_task_finished(self):
         def _process_finish():
-            operation_type = self.current_operation; final_status_text = self.status_label.cget("text"); final_status_color = self.status_label.cget("text_color")
+            operation_type = self.current_operation
+            final_status_text = self.status_label.cget("text")
+            final_status_color = self.status_label.cget("text_color")
             print(f"UI_Interface: Task finished notification (Type: '{operation_type}'). Final status: '{final_status_text}' (Color: {final_status_color})")
-            was_cancelled = "cancel" in final_status_text.lower(); was_error = final_status_color == "red" or "error" in final_status_text.lower()
+            was_cancelled = "cancel" in final_status_text.lower()
+            was_error = final_status_color == "red" or "error" in final_status_text.lower()
             if was_cancelled:
                 print("UI: Operation was cancelled. Restoring previous state if info exists.")
                 if self.fetched_info: self._enter_info_fetched_state(); self.update_status("Operation Cancelled.")
@@ -258,9 +260,11 @@ class UserInterface(ctk.CTk):
                 print("UI: Operation failed. Restoring previous state if info exists.")
                 if self.fetched_info: self._enter_info_fetched_state()
                 else: self._enter_idle_state()
-            elif operation_type == 'fetch' and not was_error and not was_cancelled: print("UI: Info fetch finished successfully (handled by on_info_success). State already updated."); pass
+            elif operation_type == 'fetch' and not was_error and not was_cancelled:
+                print("UI: Info fetch finished successfully (handled by on_info_success). State already updated.")
             elif operation_type == 'download' and not was_error and not was_cancelled:
                  print("UI: Download finished successfully. Resetting to idle state."); messagebox.showinfo("Download Complete", f"Download finished successfully!\nFile(s) saved in:\n{self.path_frame_widget.get_path()}"); self._enter_idle_state()
             else: print(f"UI: Task finished with unknown state or type. Resetting. (Op: {operation_type}, Status: {final_status_text})"); self._enter_idle_state()
             self.current_operation = None
+
         self.after(50, _process_finish)
