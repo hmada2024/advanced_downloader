@@ -155,7 +155,6 @@ imports:
  &#8226;   <a href="#keyword">keyword</a>
  &#8226;   <a href="#linecache">linecache</a>
  &#8226;   <a href="#locale">locale</a>
- &#8226;   <a href="#logic_handler">logic_handler</a>
  &#8226;   <a href="#ntpath">ntpath</a>
  &#8226;   <a href="#operator">operator</a>
  &#8226;   <a href="#os">os</a>
@@ -172,6 +171,8 @@ imports:
  &#8226;   <a href="#re._constants">re._constants</a>
  &#8226;   <a href="#re._parser">re._parser</a>
  &#8226;   <a href="#reprlib">reprlib</a>
+ &#8226;   <a href="#src.logic_handler">src.logic_handler</a>
+ &#8226;   <a href="#src.ui_interface">src.ui_interface</a>
  &#8226;   <a href="#sre_compile">sre_compile</a>
  &#8226;   <a href="#sre_constants">sre_constants</a>
  &#8226;   <a href="#sre_parse">sre_parse</a>
@@ -179,7 +180,6 @@ imports:
  &#8226;   <a href="#sys">sys</a>
  &#8226;   <a href="#traceback">traceback</a>
  &#8226;   <a href="#types">types</a>
- &#8226;   <a href="#ui_interface">ui_interface</a>
  &#8226;   <a href="#warnings">warnings</a>
  &#8226;   <a href="#weakref">weakref</a>
 
@@ -4880,13 +4880,13 @@ imported by:
  &#8226;   <a href="#customtkinter.windows">customtkinter.windows</a>
  &#8226;   <a href="#customtkinter.windows.widgets.core_widget_classes.ctk_base_class">customtkinter.windows.widgets.core_widget_classes.ctk_base_class</a>
  &#8226;   <a href="#main.py">main.py</a>
- &#8226;   <a href="#ui_components.bottom_controls_frame">ui_components.bottom_controls_frame</a>
- &#8226;   <a href="#ui_components.options_control_frame">ui_components.options_control_frame</a>
- &#8226;   <a href="#ui_components.path_selection_frame">ui_components.path_selection_frame</a>
- &#8226;   <a href="#ui_components.playlist_selector">ui_components.playlist_selector</a>
- &#8226;   <a href="#ui_components.quality_selector">ui_components.quality_selector</a>
- &#8226;   <a href="#ui_components.top_input_frame">ui_components.top_input_frame</a>
- &#8226;   <a href="#ui_interface">ui_interface</a>
+ &#8226;   <a href="#src.ui_components.bottom_controls_frame">src.ui_components.bottom_controls_frame</a>
+ &#8226;   <a href="#src.ui_components.options_control_frame">src.ui_components.options_control_frame</a>
+ &#8226;   <a href="#src.ui_components.path_selection_frame">src.ui_components.path_selection_frame</a>
+ &#8226;   <a href="#src.ui_components.playlist_selector">src.ui_components.playlist_selector</a>
+ &#8226;   <a href="#src.ui_components.quality_selector">src.ui_components.quality_selector</a>
+ &#8226;   <a href="#src.ui_components.top_input_frame">src.ui_components.top_input_frame</a>
+ &#8226;   <a href="#src.ui_interface">src.ui_interface</a>
 
   </div>
 
@@ -9340,18 +9340,6 @@ imported by:
 </div>
 
 <div class="node">
-  <a name="exceptions"></a>
-  <a target="code" href="///E:/your_downloader_app/exceptions.py" type="text/plain"><tt>exceptions</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imported by:
-    <a href="#logic_handler">logic_handler</a>
- &#8226;   <a href="#logic_operations">logic_operations</a>
-
-  </div>
-
-</div>
-
-<div class="node">
   <a name="fcntl"></a>
   <a target="code" href="" type="text/plain"><tt>fcntl</tt></a>
 <span class="moduletype">MissingModule</span>  <div class="import">
@@ -10190,7 +10178,8 @@ imported by:
  &#8226;   <a href="#humanize.lists">humanize.lists</a>
  &#8226;   <a href="#humanize.number">humanize.number</a>
  &#8226;   <a href="#humanize.time">humanize.time</a>
- &#8226;   <a href="#ui_components.quality_selector">ui_components.quality_selector</a>
+ &#8226;   <a href="#src.logic_operations">src.logic_operations</a>
+ &#8226;   <a href="#src.ui_components.quality_selector">src.ui_components.quality_selector</a>
 
   </div>
 
@@ -11722,47 +11711,6 @@ imported by:
 </div>
 
 <div class="node">
-  <a name="logic_handler"></a>
-  <a target="code" href="///E:/your_downloader_app/logic_handler.py" type="text/plain"><tt>logic_handler</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#exceptions">exceptions</a>
- &#8226;   <a href="#logic_operations">logic_operations</a>
- &#8226;   <a href="#threading">threading</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#main.py">main.py</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="logic_operations"></a>
-  <a target="code" href="///E:/your_downloader_app/logic_operations.py" type="text/plain"><tt>logic_operations</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#exceptions">exceptions</a>
- &#8226;   <a href="#os">os</a>
- &#8226;   <a href="#pathlib">pathlib</a>
- &#8226;   <a href="#re">re</a>
- &#8226;   <a href="#sys">sys</a>
- &#8226;   <a href="#time">time</a>
- &#8226;   <a href="#traceback">traceback</a>
- &#8226;   <a href="#yt_dlp">yt_dlp</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#logic_handler">logic_handler</a>
-
-  </div>
-
-</div>
-
-<div class="node">
   <a name="lzma"></a>
   <a target="code" href="///C:/Python/Lib/lzma.py" type="text/plain"><tt>lzma</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
@@ -12995,7 +12943,6 @@ imported by:
  &#8226;   <a href="#linecache">linecache</a>
  &#8226;   <a href="#locale">locale</a>
  &#8226;   <a href="#logging">logging</a>
- &#8226;   <a href="#logic_operations">logic_operations</a>
  &#8226;   <a href="#lzma">lzma</a>
  &#8226;   <a href="#main.py">main.py</a>
  &#8226;   <a href="#mimetypes">mimetypes</a>
@@ -13106,6 +13053,8 @@ imported by:
  &#8226;   <a href="#site">site</a>
  &#8226;   <a href="#socket">socket</a>
  &#8226;   <a href="#socketserver">socketserver</a>
+ &#8226;   <a href="#src.logic_operations">src.logic_operations</a>
+ &#8226;   <a href="#src.ui_interface">src.ui_interface</a>
  &#8226;   <a href="#ssl">ssl</a>
  &#8226;   <a href="#subprocess">subprocess</a>
  &#8226;   <a href="#sysconfig">sysconfig</a>
@@ -13114,7 +13063,6 @@ imported by:
  &#8226;   <a href="#threading">threading</a>
  &#8226;   <a href="#tkinter">tkinter</a>
  &#8226;   <a href="#tkinter.filedialog">tkinter.filedialog</a>
- &#8226;   <a href="#ui_interface">ui_interface</a>
  &#8226;   <a href="#unittest.loader">unittest.loader</a>
  &#8226;   <a href="#unittest.main">unittest.main</a>
  &#8226;   <a href="#urllib.request">urllib.request</a>
@@ -13659,7 +13607,6 @@ imported by:
  &#8226;   <a href="#importlib.resources._common">importlib.resources._common</a>
  &#8226;   <a href="#importlib.resources.abc">importlib.resources.abc</a>
  &#8226;   <a href="#importlib.resources.readers">importlib.resources.readers</a>
- &#8226;   <a href="#logic_operations">logic_operations</a>
  &#8226;   <a href="#packaging.metadata">packaging.metadata</a>
  &#8226;   <a href="#pathlib._abc">pathlib._abc</a>
  &#8226;   <a href="#pathlib._local">pathlib._local</a>
@@ -13680,6 +13627,7 @@ imported by:
  &#8226;   <a href="#setuptools.config.expand">setuptools.config.expand</a>
  &#8226;   <a href="#setuptools.discovery">setuptools.discovery</a>
  &#8226;   <a href="#setuptools.dist">setuptools.dist</a>
+ &#8226;   <a href="#src.logic_operations">src.logic_operations</a>
  &#8226;   <a href="#yt_dlp.plugins">yt_dlp.plugins</a>
  &#8226;   <a href="#zipfile._path">zipfile._path</a>
 
@@ -14487,7 +14435,6 @@ imported by:
  &#8226;   <a href="#json.scanner">json.scanner</a>
  &#8226;   <a href="#locale">locale</a>
  &#8226;   <a href="#logging">logging</a>
- &#8226;   <a href="#logic_operations">logic_operations</a>
  &#8226;   <a href="#main.py">main.py</a>
  &#8226;   <a href="#packaging._manylinux">packaging._manylinux</a>
  &#8226;   <a href="#packaging._musllinux">packaging._musllinux</a>
@@ -14563,6 +14510,7 @@ imported by:
  &#8226;   <a href="#setuptools.glob">setuptools.glob</a>
  &#8226;   <a href="#setuptools.wheel">setuptools.wheel</a>
  &#8226;   <a href="#shlex">shlex</a>
+ &#8226;   <a href="#src.logic_operations">src.logic_operations</a>
  &#8226;   <a href="#sre_compile">sre_compile</a>
  &#8226;   <a href="#sre_constants">sre_constants</a>
  &#8226;   <a href="#sre_parse">sre_parse</a>
@@ -19866,6 +19814,235 @@ imported by:
 </div>
 
 <div class="node">
+  <a name="src"></a>
+  <a target="code" href="///E:/your_downloader_app/src/__init__.py" type="text/plain"><tt>src</tt></a>
+<span class="moduletype">Package</span>  <div class="import">
+imported by:
+    <a href="#src.exceptions">src.exceptions</a>
+ &#8226;   <a href="#src.logic_handler">src.logic_handler</a>
+ &#8226;   <a href="#src.logic_operations">src.logic_operations</a>
+ &#8226;   <a href="#src.ui_components">src.ui_components</a>
+ &#8226;   <a href="#src.ui_interface">src.ui_interface</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="src.exceptions"></a>
+  <a target="code" href="///E:/your_downloader_app/src/exceptions.py" type="text/plain"><tt>src.exceptions</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#src">src</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#src.logic_handler">src.logic_handler</a>
+ &#8226;   <a href="#src.logic_operations">src.logic_operations</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="src.logic_handler"></a>
+  <a target="code" href="///E:/your_downloader_app/src/logic_handler.py" type="text/plain"><tt>src.logic_handler</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#src">src</a>
+ &#8226;   <a href="#src.exceptions">src.exceptions</a>
+ &#8226;   <a href="#src.logic_operations">src.logic_operations</a>
+ &#8226;   <a href="#threading">threading</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#main.py">main.py</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="src.logic_operations"></a>
+  <a target="code" href="///E:/your_downloader_app/src/logic_operations.py" type="text/plain"><tt>src.logic_operations</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#humanize">humanize</a>
+ &#8226;   <a href="#os">os</a>
+ &#8226;   <a href="#pathlib">pathlib</a>
+ &#8226;   <a href="#re">re</a>
+ &#8226;   <a href="#src">src</a>
+ &#8226;   <a href="#src.exceptions">src.exceptions</a>
+ &#8226;   <a href="#sys">sys</a>
+ &#8226;   <a href="#time">time</a>
+ &#8226;   <a href="#traceback">traceback</a>
+ &#8226;   <a href="#yt_dlp">yt_dlp</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#src.logic_handler">src.logic_handler</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="src.ui_components"></a>
+  <a target="code" href="///E:/your_downloader_app/src/ui_components/__init__.py" type="text/plain"><tt>src.ui_components</tt></a>
+<span class="moduletype">Package</span>  <div class="import">
+imports:
+    <a href="#src">src</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#src.ui_components.bottom_controls_frame">src.ui_components.bottom_controls_frame</a>
+ &#8226;   <a href="#src.ui_components.options_control_frame">src.ui_components.options_control_frame</a>
+ &#8226;   <a href="#src.ui_components.path_selection_frame">src.ui_components.path_selection_frame</a>
+ &#8226;   <a href="#src.ui_components.playlist_selector">src.ui_components.playlist_selector</a>
+ &#8226;   <a href="#src.ui_components.quality_selector">src.ui_components.quality_selector</a>
+ &#8226;   <a href="#src.ui_components.top_input_frame">src.ui_components.top_input_frame</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="src.ui_components.bottom_controls_frame"></a>
+  <a target="code" href="///E:/your_downloader_app/src/ui_components/bottom_controls_frame.py" type="text/plain"><tt>src.ui_components.bottom_controls_frame</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#customtkinter">customtkinter</a>
+ &#8226;   <a href="#src.ui_components">src.ui_components</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#src.ui_interface">src.ui_interface</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="src.ui_components.options_control_frame"></a>
+  <a target="code" href="///E:/your_downloader_app/src/ui_components/options_control_frame.py" type="text/plain"><tt>src.ui_components.options_control_frame</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#customtkinter">customtkinter</a>
+ &#8226;   <a href="#src.ui_components">src.ui_components</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#src.ui_interface">src.ui_interface</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="src.ui_components.path_selection_frame"></a>
+  <a target="code" href="///E:/your_downloader_app/src/ui_components/path_selection_frame.py" type="text/plain"><tt>src.ui_components.path_selection_frame</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#customtkinter">customtkinter</a>
+ &#8226;   <a href="#src.ui_components">src.ui_components</a>
+ &#8226;   <a href="#tkinter">tkinter</a>
+ &#8226;   <a href="#tkinter.filedialog">tkinter.filedialog</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#src.ui_interface">src.ui_interface</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="src.ui_components.playlist_selector"></a>
+  <a target="code" href="///E:/your_downloader_app/src/ui_components/playlist_selector.py" type="text/plain"><tt>src.ui_components.playlist_selector</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#customtkinter">customtkinter</a>
+ &#8226;   <a href="#src.ui_components">src.ui_components</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#src.ui_interface">src.ui_interface</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="src.ui_components.quality_selector"></a>
+  <a target="code" href="///E:/your_downloader_app/src/ui_components/quality_selector.py" type="text/plain"><tt>src.ui_components.quality_selector</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#customtkinter">customtkinter</a>
+ &#8226;   <a href="#humanize">humanize</a>
+ &#8226;   <a href="#src.ui_components">src.ui_components</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#src.ui_interface">src.ui_interface</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="src.ui_components.top_input_frame"></a>
+  <a target="code" href="///E:/your_downloader_app/src/ui_components/top_input_frame.py" type="text/plain"><tt>src.ui_components.top_input_frame</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#customtkinter">customtkinter</a>
+ &#8226;   <a href="#src.ui_components">src.ui_components</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#src.ui_interface">src.ui_interface</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="src.ui_interface"></a>
+  <a target="code" href="///E:/your_downloader_app/src/ui_interface.py" type="text/plain"><tt>src.ui_interface</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#customtkinter">customtkinter</a>
+ &#8226;   <a href="#os">os</a>
+ &#8226;   <a href="#src">src</a>
+ &#8226;   <a href="#src.ui_components.bottom_controls_frame">src.ui_components.bottom_controls_frame</a>
+ &#8226;   <a href="#src.ui_components.options_control_frame">src.ui_components.options_control_frame</a>
+ &#8226;   <a href="#src.ui_components.path_selection_frame">src.ui_components.path_selection_frame</a>
+ &#8226;   <a href="#src.ui_components.playlist_selector">src.ui_components.playlist_selector</a>
+ &#8226;   <a href="#src.ui_components.quality_selector">src.ui_components.quality_selector</a>
+ &#8226;   <a href="#src.ui_components.top_input_frame">src.ui_components.top_input_frame</a>
+ &#8226;   <a href="#tkinter">tkinter</a>
+ &#8226;   <a href="#tkinter.filedialog">tkinter.filedialog</a>
+ &#8226;   <a href="#tkinter.messagebox">tkinter.messagebox</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#main.py">main.py</a>
+
+  </div>
+
+</div>
+
+<div class="node">
   <a name="sre_compile"></a>
   <a target="code" href="///C:/Python/Lib/sre_compile.py" type="text/plain"><tt>sre_compile</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
@@ -20305,7 +20482,6 @@ imported by:
  &#8226;   <a href="#linecache">linecache</a>
  &#8226;   <a href="#locale">locale</a>
  &#8226;   <a href="#logging">logging</a>
- &#8226;   <a href="#logic_operations">logic_operations</a>
  &#8226;   <a href="#main.py">main.py</a>
  &#8226;   <a href="#mimetypes">mimetypes</a>
  &#8226;   <a href="#multiprocessing">multiprocessing</a>
@@ -20414,6 +20590,7 @@ imported by:
  &#8226;   <a href="#socket">socket</a>
  &#8226;   <a href="#socketserver">socketserver</a>
  &#8226;   <a href="#sqlite3.__main__">sqlite3.__main__</a>
+ &#8226;   <a href="#src.logic_operations">src.logic_operations</a>
  &#8226;   <a href="#ssl">ssl</a>
  &#8226;   <a href="#statistics">statistics</a>
  &#8226;   <a href="#subprocess">subprocess</a>
@@ -20675,7 +20852,6 @@ imported by:
  &#8226;   <a href="#humanize.i18n">humanize.i18n</a>
  &#8226;   <a href="#importlib.util">importlib.util</a>
  &#8226;   <a href="#logging">logging</a>
- &#8226;   <a href="#logic_handler">logic_handler</a>
  &#8226;   <a href="#multiprocessing.context">multiprocessing.context</a>
  &#8226;   <a href="#multiprocessing.dummy">multiprocessing.dummy</a>
  &#8226;   <a href="#multiprocessing.forkserver">multiprocessing.forkserver</a>
@@ -20691,6 +20867,7 @@ imported by:
  &#8226;   <a href="#pydoc">pydoc</a>
  &#8226;   <a href="#queue">queue</a>
  &#8226;   <a href="#socketserver">socketserver</a>
+ &#8226;   <a href="#src.logic_handler">src.logic_handler</a>
  &#8226;   <a href="#subprocess">subprocess</a>
  &#8226;   <a href="#sysconfig">sysconfig</a>
  &#8226;   <a href="#unittest.mock">unittest.mock</a>
@@ -20736,7 +20913,6 @@ imported by:
  &#8226;   <a href="#http.cookies">http.cookies</a>
  &#8226;   <a href="#http.server">http.server</a>
  &#8226;   <a href="#logging">logging</a>
- &#8226;   <a href="#logic_operations">logic_operations</a>
  &#8226;   <a href="#multiprocessing.connection">multiprocessing.connection</a>
  &#8226;   <a href="#multiprocessing.managers">multiprocessing.managers</a>
  &#8226;   <a href="#multiprocessing.pool">multiprocessing.pool</a>
@@ -20753,6 +20929,7 @@ imported by:
  &#8226;   <a href="#setuptools.command.egg_info">setuptools.command.egg_info</a>
  &#8226;   <a href="#socketserver">socketserver</a>
  &#8226;   <a href="#sqlite3.dbapi2">sqlite3.dbapi2</a>
+ &#8226;   <a href="#src.logic_operations">src.logic_operations</a>
  &#8226;   <a href="#ssl">ssl</a>
  &#8226;   <a href="#subprocess">subprocess</a>
  &#8226;   <a href="#tarfile">tarfile</a>
@@ -20881,6 +21058,8 @@ imported by:
  &#8226;   <a href="#customtkinter.windows.widgets.ctk_tabview">customtkinter.windows.widgets.ctk_tabview</a>
  &#8226;   <a href="#customtkinter.windows.widgets.ctk_textbox">customtkinter.windows.widgets.ctk_textbox</a>
  &#8226;   <a href="#customtkinter.windows.widgets.scaling.scaling_tracker">customtkinter.windows.widgets.scaling.scaling_tracker</a>
+ &#8226;   <a href="#src.ui_components.path_selection_frame">src.ui_components.path_selection_frame</a>
+ &#8226;   <a href="#src.ui_interface">src.ui_interface</a>
  &#8226;   <a href="#tkinter.commondialog">tkinter.commondialog</a>
  &#8226;   <a href="#tkinter.constants">tkinter.constants</a>
  &#8226;   <a href="#tkinter.dialog">tkinter.dialog</a>
@@ -20889,8 +21068,6 @@ imported by:
  &#8226;   <a href="#tkinter.messagebox">tkinter.messagebox</a>
  &#8226;   <a href="#tkinter.simpledialog">tkinter.simpledialog</a>
  &#8226;   <a href="#tkinter.ttk">tkinter.ttk</a>
- &#8226;   <a href="#ui_components.path_selection_frame">ui_components.path_selection_frame</a>
- &#8226;   <a href="#ui_interface">ui_interface</a>
 
   </div>
 
@@ -20964,8 +21141,8 @@ imports:
   <div class="import">
 imported by:
     <a href="#customtkinter">customtkinter</a>
- &#8226;   <a href="#ui_components.path_selection_frame">ui_components.path_selection_frame</a>
- &#8226;   <a href="#ui_interface">ui_interface</a>
+ &#8226;   <a href="#src.ui_components.path_selection_frame">src.ui_components.path_selection_frame</a>
+ &#8226;   <a href="#src.ui_interface">src.ui_interface</a>
 
   </div>
 
@@ -20999,9 +21176,9 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#tkinter">tkinter</a>
+    <a href="#src.ui_interface">src.ui_interface</a>
+ &#8226;   <a href="#tkinter">tkinter</a>
  &#8226;   <a href="#tkinter.simpledialog">tkinter.simpledialog</a>
- &#8226;   <a href="#ui_interface">ui_interface</a>
 
   </div>
 
@@ -21214,7 +21391,6 @@ imported by:
  &#8226;   <a href="#concurrent.futures.process">concurrent.futures.process</a>
  &#8226;   <a href="#http.cookiejar">http.cookiejar</a>
  &#8226;   <a href="#logging">logging</a>
- &#8226;   <a href="#logic_operations">logic_operations</a>
  &#8226;   <a href="#main.py">main.py</a>
  &#8226;   <a href="#multiprocessing.managers">multiprocessing.managers</a>
  &#8226;   <a href="#multiprocessing.pool">multiprocessing.pool</a>
@@ -21225,6 +21401,7 @@ imported by:
  &#8226;   <a href="#pydoc">pydoc</a>
  &#8226;   <a href="#site">site</a>
  &#8226;   <a href="#socketserver">socketserver</a>
+ &#8226;   <a href="#src.logic_operations">src.logic_operations</a>
  &#8226;   <a href="#threading">threading</a>
  &#8226;   <a href="#tkinter">tkinter</a>
  &#8226;   <a href="#unittest.case">unittest.case</a>
@@ -21710,153 +21887,6 @@ imported by:
     <a href="#setuptools._distutils.command.bdist">setuptools._distutils.command.bdist</a>
  &#8226;   <a href="#setuptools._distutils.sysconfig">setuptools._distutils.sysconfig</a>
  &#8226;   <a href="#typing_extensions">typing_extensions</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="ui_components"></a>
-  <a target="code" href="///E:/your_downloader_app/ui_components/__init__.py" type="text/plain"><tt>ui_components</tt></a>
-<span class="moduletype">Package</span>  <div class="import">
-imported by:
-    <a href="#ui_components.bottom_controls_frame">ui_components.bottom_controls_frame</a>
- &#8226;   <a href="#ui_components.options_control_frame">ui_components.options_control_frame</a>
- &#8226;   <a href="#ui_components.path_selection_frame">ui_components.path_selection_frame</a>
- &#8226;   <a href="#ui_components.playlist_selector">ui_components.playlist_selector</a>
- &#8226;   <a href="#ui_components.quality_selector">ui_components.quality_selector</a>
- &#8226;   <a href="#ui_components.top_input_frame">ui_components.top_input_frame</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="ui_components.bottom_controls_frame"></a>
-  <a target="code" href="///E:/your_downloader_app/ui_components/bottom_controls_frame.py" type="text/plain"><tt>ui_components.bottom_controls_frame</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#customtkinter">customtkinter</a>
- &#8226;   <a href="#ui_components">ui_components</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#ui_interface">ui_interface</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="ui_components.options_control_frame"></a>
-  <a target="code" href="///E:/your_downloader_app/ui_components/options_control_frame.py" type="text/plain"><tt>ui_components.options_control_frame</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#customtkinter">customtkinter</a>
- &#8226;   <a href="#ui_components">ui_components</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#ui_interface">ui_interface</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="ui_components.path_selection_frame"></a>
-  <a target="code" href="///E:/your_downloader_app/ui_components/path_selection_frame.py" type="text/plain"><tt>ui_components.path_selection_frame</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#customtkinter">customtkinter</a>
- &#8226;   <a href="#tkinter">tkinter</a>
- &#8226;   <a href="#tkinter.filedialog">tkinter.filedialog</a>
- &#8226;   <a href="#ui_components">ui_components</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#ui_interface">ui_interface</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="ui_components.playlist_selector"></a>
-  <a target="code" href="///E:/your_downloader_app/ui_components/playlist_selector.py" type="text/plain"><tt>ui_components.playlist_selector</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#customtkinter">customtkinter</a>
- &#8226;   <a href="#ui_components">ui_components</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#ui_interface">ui_interface</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="ui_components.quality_selector"></a>
-  <a target="code" href="///E:/your_downloader_app/ui_components/quality_selector.py" type="text/plain"><tt>ui_components.quality_selector</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#customtkinter">customtkinter</a>
- &#8226;   <a href="#humanize">humanize</a>
- &#8226;   <a href="#ui_components">ui_components</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#ui_interface">ui_interface</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="ui_components.top_input_frame"></a>
-  <a target="code" href="///E:/your_downloader_app/ui_components/top_input_frame.py" type="text/plain"><tt>ui_components.top_input_frame</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#customtkinter">customtkinter</a>
- &#8226;   <a href="#ui_components">ui_components</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#ui_interface">ui_interface</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="ui_interface"></a>
-  <a target="code" href="///E:/your_downloader_app/ui_interface.py" type="text/plain"><tt>ui_interface</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#customtkinter">customtkinter</a>
- &#8226;   <a href="#os">os</a>
- &#8226;   <a href="#tkinter">tkinter</a>
- &#8226;   <a href="#tkinter.filedialog">tkinter.filedialog</a>
- &#8226;   <a href="#tkinter.messagebox">tkinter.messagebox</a>
- &#8226;   <a href="#ui_components.bottom_controls_frame">ui_components.bottom_controls_frame</a>
- &#8226;   <a href="#ui_components.options_control_frame">ui_components.options_control_frame</a>
- &#8226;   <a href="#ui_components.path_selection_frame">ui_components.path_selection_frame</a>
- &#8226;   <a href="#ui_components.playlist_selector">ui_components.playlist_selector</a>
- &#8226;   <a href="#ui_components.quality_selector">ui_components.quality_selector</a>
- &#8226;   <a href="#ui_components.top_input_frame">ui_components.top_input_frame</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#main.py">main.py</a>
 
   </div>
 
@@ -23276,7 +23306,7 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#logic_operations">logic_operations</a>
+    <a href="#src.logic_operations">src.logic_operations</a>
  &#8226;   <a href="#yt_dlp">yt_dlp</a>
  &#8226;   <a href="#yt_dlp.YoutubeDL">yt_dlp.YoutubeDL</a>
  &#8226;   <a href="#yt_dlp.aes">yt_dlp.aes</a>
