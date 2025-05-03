@@ -7,20 +7,12 @@ import os
 
 # استيراد مكونات الواجهة المنفصلة (باستخدام الاستيراد النسبي)
 # Import separate UI components (using relative imports)
-from .ui_components.top_input_frame import TopInputFrame  # <-- تم التعديل: استخدام .
-from .ui_components.options_control_frame import (
-    OptionsControlFrame,
-)  # <-- تم التعديل: استخدام .
-from .ui_components.path_selection_frame import (
-    PathSelectionFrame,
-)  # <-- تم التعديل: استخدام .
-from .ui_components.bottom_controls_frame import (
-    BottomControlsFrame,
-)  # <-- تم التعديل: استخدام .
-from .ui_components.quality_selector import QualitySelector  # <-- تم التعديل: استخدام .
-from .ui_components.playlist_selector import (
-    PlaylistSelector,
-)  # <-- تم التعديل: استخدام .
+from .ui_components.top_input_frame import TopInputFrame
+from .ui_components.options_control_frame import OptionsControlFrame
+from .ui_components.path_selection_frame import PathSelectionFrame
+from .ui_components.bottom_controls_frame import BottomControlsFrame
+from .ui_components.quality_selector import QualitySelector
+from .ui_components.playlist_selector import PlaylistSelector
 
 
 # الكلاس الرئيسي للواجهة، يرث من ctk.CTk (النافذة الرئيسية)
@@ -34,10 +26,11 @@ class UserInterface(ctk.CTk):
         self.logic = logic_handler
         self.fetched_info = None
         self.current_operation = None
+        self._last_toggled_playlist_mode = False  # لتتبع آخر حالة للمفتاح
 
         # --- إعداد النافذة ---
         self.title("Advanced Downloader")
-        self.geometry("850x750")  # الحجم من المرحلة الأولى
+        self.geometry("850x750")
         ctk.set_appearance_mode("System")
         ctk.set_default_color_theme("blue")
 
@@ -75,8 +68,7 @@ class UserInterface(ctk.CTk):
         # مكونات المنطقة الديناميكية (توضع في الشبكة لاحقًا)
         self.quality_selector_widget = QualitySelector(self)
         self.playlist_selector_widget = PlaylistSelector(self)
-        # ملاحظة: QualitySelector الآن يوضع في الصف 5، و PlaylistSelector في الصف 6
-        # Note: QualitySelector now placed in row 5, PlaylistSelector in row 6
+        # ملاحظة: QualitySelector يوضع في الصف 5، و PlaylistSelector في الصف 6
 
         # وضع عناصر التحكم السفلية وشريط التقدم والحالة في الصفوف الأخيرة
         self.bottom_controls_widget = BottomControlsFrame(
@@ -105,25 +97,24 @@ class UserInterface(ctk.CTk):
         self._enter_idle_state()
 
     # --- دوال إدارة الحالة ---
-    def _enable_main_controls(self):
+    def _enable_main_controls(
+        self, enable_playlist_switch=True
+    ):  # إضافة خيار للتحكم بالمفتاح
+        """Enables the main UI controls."""
         self.top_frame_widget.enable_fetch()
-        self.options_frame_widget.enable()
+        self.options_frame_widget.format_combobox.configure(
+            state="normal"
+        )  # تمكين الكومبوبوكس دائمًا
+        # تمكين أو تعطيل مفتاح القائمة بناءً على المعامل
+        switch_state = "normal" if enable_playlist_switch else "disabled"
+        self.options_frame_widget.playlist_switch.configure(state=switch_state)
         self.path_frame_widget.enable()
-        # تمكين مفتاح القائمة إذا كانت المعلومات قائمة فعلًا
-        if self.fetched_info and isinstance(self.fetched_info.get("entries"), list):
-            self.options_frame_widget.enable()
-        elif not self.fetched_info:  # في حالة الخمول بدون معلومات
-            self.options_frame_widget.enable()  # تمكينها بشكل عام
-        # تعطيل المفتاح إذا لم تكن المعلومات قائمة
-        elif self.fetched_info and not isinstance(
-            self.fetched_info.get("entries"), list
-        ):
-            # self.options_frame_widget.format_combobox.configure(state="normal") # الكومبوبوكس يبقى ممكن
-            self.options_frame_widget.playlist_switch.configure(state="disabled")
 
     def _enter_idle_state(self):
         """Reset UI to initial idle state."""
-        self._enable_main_controls()
+        self._enable_main_controls(
+            enable_playlist_switch=True
+        )  # تمكين المفتاح في الحالة الأولية
         self.bottom_controls_widget.disable_download(button_text="Download")
         self.bottom_controls_widget.hide_cancel_button()
         self.dynamic_area_label.configure(text="")
@@ -139,24 +130,41 @@ class UserInterface(ctk.CTk):
         self.progress_bar.set(0)
         self.current_operation = None
         self.options_frame_widget.set_playlist_mode(False)  # إعادة تعيين مفتاح القائمة
+        self._last_toggled_playlist_mode = False  # إعادة تعيين الحالة المتتبعة
 
     def _enter_fetching_state(self):
         """Set UI state during info fetching."""
         self.top_frame_widget.disable_fetch(button_text="Fetching...")
-        self.options_frame_widget.disable()
+        self.options_frame_widget.disable()  # تعطيل كل الخيارات أثناء الجلب
         self.path_frame_widget.disable()
-        self.bottom_controls_widget.disable_download()  # يبقى معطلًا
-        self.bottom_controls_widget.show_cancel_button()  # إظهار زر الإلغاء
+        self.bottom_controls_widget.disable_download()
+        self.bottom_controls_widget.show_cancel_button()
         self.status_label.configure(text="Fetching information...", text_color="orange")
         self.progress_bar.set(0)
 
-    def _enter_info_fetched_state(self, is_playlist_mode):
-        """Set UI state after info is fetched."""
-        print(
-            f"UI_Interface: Entering info fetched state. Playlist mode requested/set: {is_playlist_mode}"
+    def _enter_info_fetched_state(self):
+        """Set UI state after info is fetched. Determines view based on fetched_info and switch state."""
+        if not self.fetched_info:
+            print("Error: _enter_info_fetched_state called without fetched_info.")
+            self._enter_idle_state()  # العودة للحالة الأولية إذا لم تكن هناك معلومات
+            self.update_status("Error: Failed to process fetched information.")
+            return
+
+        is_actually_playlist = isinstance(self.fetched_info.get("entries"), list)
+        # --- تعديل منطق المفتاح ---
+        # تمكين عناصر التحكم الرئيسية، مع تحديد حالة المفتاح
+        self._enable_main_controls(enable_playlist_switch=is_actually_playlist)
+
+        # تحديد ما إذا كان يجب عرض واجهة القائمة بناءً على حالة المفتاح *و* نوع المعلومات
+        should_show_playlist_view = (
+            self.options_frame_widget.get_playlist_mode() and is_actually_playlist
         )
-        self._enable_main_controls()  # تمكين الأزرار العلوية والخيارات
-        self.bottom_controls_widget.hide_cancel_button()  # إخفاء زر الإلغاء
+
+        print(
+            f"UI_Interface: Entering info fetched state. Actual playlist: {is_actually_playlist}, Switch ON: {self.options_frame_widget.get_playlist_mode()}, Show Playlist View: {should_show_playlist_view}"
+        )
+
+        self.bottom_controls_widget.hide_cancel_button()
 
         # تمكين زر التحميل إذا كان المسار محددًا
         if self.path_frame_widget.get_path() and os.path.isdir(
@@ -170,14 +178,7 @@ class UserInterface(ctk.CTk):
                 button_text="Select Save Location"
             )
 
-        # التحقق من نوع المعلومات المجوبة فعليًا
-        is_actually_playlist = (
-            isinstance(self.fetched_info.get("entries"), list)
-            if self.fetched_info
-            else False
-        )
-
-        if is_playlist_mode and is_actually_playlist:
+        if should_show_playlist_view:
             # عرض محدد القائمة
             playlist_title = self.fetched_info.get("title", "Untitled Playlist")
             self.dynamic_area_label.configure(text=f"Playlist: {playlist_title}")
@@ -190,9 +191,7 @@ class UserInterface(ctk.CTk):
                 row=6, column=0, columnspan=3, padx=20, pady=10, sticky="nsew"
             )
             print("UI_Interface: Playlist frame gridded.")
-        elif (
-            self.fetched_info
-        ):  # إذا كانت المعلومات فيديو مفرد (أو تم تعطيل وضع القائمة)
+        else:  # عرض واجهة الفيديو المفرد (إما لأنها فيديو مفرد أو لأن المفتاح مغلق)
             # عرض محدد الجودة
             video_title = self.fetched_info.get("title", "Untitled Video")
             self.dynamic_area_label.configure(text=f"Video: {video_title}")
@@ -205,36 +204,28 @@ class UserInterface(ctk.CTk):
                 row=5, column=0, columnspan=3, padx=15, pady=5, sticky="ew"
             )
             print("UI_Interface: Quality frame gridded.")
-        else:
-            # حالة خطأ أو لا توجد معلومات
-            self.dynamic_area_label.configure(
-                text="Error: Invalid information received."
-            )
-            self.quality_selector_widget.grid_remove()
-            self.playlist_selector_widget.grid_remove()
+            # إذا كانت المعلومات قائمة فعلًا ولكن المفتاح مغلق، تأكد من أن المفتاح ممكن التغيير
+            if is_actually_playlist:
+                self.options_frame_widget.playlist_switch.configure(state="normal")
 
         self.update_idletasks()  # تحديث الواجهة فورًا لإظهار التغييرات
 
     def _enter_downloading_state(self):
         """Set UI state during download."""
-        self.top_frame_widget.disable_fetch()  # تعطيل الإدخال العلوي
-        self.options_frame_widget.disable()  # تعطيل الخيارات
-        self.path_frame_widget.disable()  # تعطيل اختيار المسار
-        self.quality_selector_widget.disable()  # تعطيل محدد الجودة (إذا كان ظاهرًا)
-        self.playlist_selector_widget.disable()  # تعطيل محدد القائمة (إذا كان ظاهرًا)
-        self.bottom_controls_widget.disable_download(
-            button_text="Downloading..."
-        )  # تعطيل زر التحميل
-        self.bottom_controls_widget.show_cancel_button()  # إظهار زر الإلغاء
+        self.top_frame_widget.disable_fetch()
+        self.options_frame_widget.disable()  # تعطيل كل الخيارات أثناء التحميل
+        self.path_frame_widget.disable()
+        self.quality_selector_widget.disable()
+        self.playlist_selector_widget.disable()
+        self.bottom_controls_widget.disable_download(button_text="Downloading...")
+        self.bottom_controls_widget.show_cancel_button()
 
     # --- معالجات الأحداث ---
     def browse_path_logic(self):
         """Handles the 'Browse' button click."""
-        # فتح مربع حوار اختيار المجلد
         directory = filedialog.askdirectory(title="Select Download Folder")
-        if directory:  # إذا اختار المستخدم مجلدًا
+        if directory:
             self.path_frame_widget.set_path(directory)
-            # التحقق مما إذا كان يجب تمكين زر التحميل الآن
             if (
                 self.fetched_info
                 and self.bottom_controls_widget.download_button.cget("state")
@@ -250,47 +241,42 @@ class UserInterface(ctk.CTk):
         if not url:
             messagebox.showerror("Input Error", "Please enter a URL.")
             return
-        self._enter_idle_state()  # إعادة الواجهة للحالة الأولية قبل البدء
-        self.top_frame_widget.set_url(url)  # التأكد من بقاء الرابط في الحقل
-        self.current_operation = "fetch"  # تحديد العملية الحالية
-        self._enter_fetching_state()  # تغيير حالة الواجهة إلى وضع الجلب
+        # --- تعديل: لا تقم بإعادة التعيين الكامل هنا، فقط استعد للجلب ---
+        # self._enter_idle_state() # <--- إزالة هذه السطر
+        self.fetched_info = None  # مسح المعلومات القديمة
+        # إخفاء المناطق الديناميكية قبل البدء
+        self.quality_selector_widget.grid_remove()
+        self.playlist_selector_widget.grid_remove()
+        self.dynamic_area_label.configure(text="")
+        # -----------------------------------------------------------
+        self.top_frame_widget.set_url(url)
+        self.current_operation = "fetch"
+        # تذكر حالة المفتاح قبل تعطيله
+        self._last_toggled_playlist_mode = self.options_frame_widget.get_playlist_mode()
+        self._enter_fetching_state()
         if self.logic:
-            self.logic.start_info_fetch(url)  # استدعاء المنطق لبدء الجلب
+            self.logic.start_info_fetch(url)
 
     def toggle_playlist_mode(self):
         """Handles the playlist switch toggle."""
-        # هذا يُستدعى عندما يغير المستخدم المفتاح
-        if self.fetched_info:  # يجب أن تكون هناك معلومات مجوبة للتأثير
-            is_playlist_mode_requested = self.options_frame_widget.get_playlist_mode()
-            is_actually_playlist = isinstance(self.fetched_info.get("entries"), list)
-
-            # إذا طلب وضع القائمة والمعلومات ليست قائمة، نمنعه ونعيده لوضع المفرد
-            if is_playlist_mode_requested and not is_actually_playlist:
-                print(
-                    "UI_Interface: Cannot enter playlist mode: Fetched info is not a playlist."
-                )
-                messagebox.showwarning(
-                    "Mode Error", "The fetched URL does not seem to be a playlist."
-                )
-                self.options_frame_widget.set_playlist_mode(
-                    False
-                )  # إعادة المفتاح لوضع إيقاف
-                self._enter_info_fetched_state(False)  # تحديث الواجهة لوضع المفرد
-            else:
-                # إذا كان الطلب متوافقًا مع المعلومات (أو كان طلب وضع مفرد)، حدث الواجهة
-                self._enter_info_fetched_state(is_playlist_mode_requested)
-        else:
-            # إذا لم تكن هناك معلومات، فقط غير حالة المفتاح (السلوك الافتراضي)
-            pass  # CustomTkinter يعالج تغيير المتغير المرتبط تلقائيًا
+        # هذا يُستدعى عندما يغير المستخدم المفتاح *يدويًا*
+        print("UI_Interface: Playlist switch toggled manually.")
+        self._last_toggled_playlist_mode = (
+            self.options_frame_widget.get_playlist_mode()
+        )  # تحديث الحالة المتتبعة
+        if self.fetched_info:
+            # إذا كانت هناك معلومات مجوبة، أعد رسم الواجهة بناءً على الحالة الجديدة للمفتاح
+            self._enter_info_fetched_state()
+        # لا تفعل شيئًا إذا لم تكن هناك معلومات مجوبة بعد
 
     def start_download_ui(self):
         """Handles the 'Download' button click."""
+        # (الكود هنا لم يتغير بشكل جوهري، يعتمد على الحالة الحالية للواجهة)
         url = self.top_frame_widget.get_url()
         save_path = self.path_frame_widget.get_path()
         format_choice = self.options_frame_widget.get_format_choice()
         is_playlist_mode_on = self.options_frame_widget.get_playlist_mode()
 
-        # التحقق من المدخلات الأساسية
         if not url:
             messagebox.showerror("Error", "URL is missing.")
             return
@@ -304,13 +290,12 @@ class UserInterface(ctk.CTk):
             messagebox.showerror("Error", "Fetch info first.")
             return
 
-        # تهيئة متغيرات التحميل
         quality_format_id = None
         playlist_items_string = None
         playlist_items_count = 0
         is_actually_playlist = isinstance(self.fetched_info.get("entries"), list)
 
-        # التحقق من وضع القائمة وتجهيز الخيارات
+        # التحقق من الوضع وتجهيز الخيارات
         if is_playlist_mode_on and is_actually_playlist:
             playlist_items_string = (
                 self.playlist_selector_widget.get_selected_items_string()
@@ -320,25 +305,32 @@ class UserInterface(ctk.CTk):
                     "Selection Error", "No playlist items selected for download."
                 )
                 return
-            # حساب عدد العناصر المحددة
             playlist_items_count = len(playlist_items_string.split(","))
-            quality_format_id = None  # لا نستخدم جودة الفيديو المفرد للقوائم
+            quality_format_id = None
             print(
                 f"UI: Starting playlist download. Count: {playlist_items_count}, Items: {playlist_items_string}"
             )
         elif not is_playlist_mode_on and self.fetched_info:  # وضع الفيديو المفرد
+            # تأكد من أن المعلومات ليست قائمة أو أن المستخدم اختار عرضها كمفرد
+            if is_actually_playlist and not messagebox.askyesno(
+                "Confirm Single Download",
+                "This is a playlist, but playlist mode is off.\nDo you want to download only the first video?",
+            ):
+                return  # ألغى المستخدم
             quality_format_id = self.quality_selector_widget.get_selected_id()
-            playlist_items_count = 1  # فيديو واحد
+            playlist_items_count = 1
             print(
                 f"UI: Starting single video download. Format ID: {quality_format_id}, General: {format_choice}"
             )
-        else:  # حالة غير متوقعة (مثل طلب قائمة لكن المعلومات مفرد)
+        else:  # حالة غير متوقعة
+            # إذا كانت المعلومات قائمة والمفتاح معطل، لا يجب أن نصل هنا عادةً
+            # إذا كانت المعلومات مفردة والمفتاح يعمل، هذا خطأ في مكان آخر
             messagebox.showerror(
-                "Logic Error", "Mismatch between playlist mode and fetched info."
+                "Logic Error",
+                "Mismatch between UI state and fetched info during download.",
             )
             return
 
-        # تغيير حالة الواجهة وبدء التحميل في المنطق
         self.current_operation = "download"
         self._enter_downloading_state()
         if self.logic:
@@ -347,8 +339,8 @@ class UserInterface(ctk.CTk):
                 save_path=save_path,
                 format_choice=format_choice,
                 quality_format_id=quality_format_id,
-                is_playlist=is_playlist_mode_on
-                and is_actually_playlist,  # القيمة الفعلية التي تمرر للمنطق
+                # تمرير القيمة الفعلية للمنطق
+                is_playlist=is_playlist_mode_on and is_actually_playlist,
                 playlist_items=playlist_items_string,
                 playlist_items_count=playlist_items_count,
             )
@@ -356,16 +348,15 @@ class UserInterface(ctk.CTk):
     def cancel_operation_ui(self):
         """Handles the 'Cancel' button click."""
         print("UI_Interface: Cancel button pressed.")
-        if self.current_operation:  # التحقق من أن هناك عملية جارية
-            self.update_status("Cancellation requested...")  # تحديث الحالة فورًا
+        if self.current_operation:
+            self.update_status("Cancellation requested...")
             if self.logic:
-                self.logic.cancel_operation()  # إرسال طلب الإلغاء للمنطق
+                self.logic.cancel_operation()
         else:
             print("UI_Interface: No operation to cancel.")
 
     # --- دوال الكول باك (Callback Methods) ---
-    # تستدعى من LogicHandler لتحديث الواجهة
-
+    # (update_status, update_progress لم تتغير)
     def update_status(self, message):
         """Updates the status label text and color."""
 
@@ -382,9 +373,9 @@ class UserInterface(ctk.CTk):
                 "complete" in msg_lower
                 or "finished downloading" in msg_lower
                 or "success" in msg_lower
-                or "finished for:" in msg_lower
+                or "finished:" in msg_lower
             ):
-                color = "green"
+                color = "green"  # تعديل بسيط
             elif (
                 "downloading" in msg_lower
                 or "processing" in msg_lower
@@ -394,139 +385,121 @@ class UserInterface(ctk.CTk):
                 color = "blue"
             self.status_label.configure(text=message, text_color=color)
 
-        # استخدام after لتجنب مشاكل الخيوط وضمان التحديث في الخيط الرئيسي للواجهة
         self.after(1, _update)
 
     def update_progress(self, value):
         """Updates the progress bar."""
-        # التأكد من أن القيمة بين 0 و 1
         value = max(0.0, min(1.0, value))
-        # استخدام after لتحديث آمن من الخيط
         self.after(1, lambda: self.progress_bar.set(value))
 
     def on_info_success(self, info_dict):
         """Callback executed when info fetching is successful."""
 
         def _update():
-            self.fetched_info = info_dict  # تخزين المعلومات المجوبة
+            self.fetched_info = info_dict
             if not info_dict:
                 self.on_info_error("Received empty or invalid info.")
                 return
 
-            # تحديد الوضع النهائي (مفرد أو قائمة) بناءً على المعلومات والمفتاح
-            is_playlist_mode_requested = self.options_frame_widget.get_playlist_mode()
             is_actually_playlist = isinstance(info_dict.get("entries"), list)
 
-            final_playlist_mode = False
-            if is_playlist_mode_requested and is_actually_playlist:
-                final_playlist_mode = True
-            elif is_playlist_mode_requested and not is_actually_playlist:
-                # كان يطلب قائمة لكنها ليست كذلك، نعيده للمفرد
+            # --- تعديل منطق المفتاح ---
+            # استعادة حالة المفتاح التي كانت قبل الجلب إذا كانت المعلومات قائمة
+            if is_actually_playlist:
+                print(
+                    f"Info success: It's a playlist. Restoring switch state to: {self._last_toggled_playlist_mode}"
+                )
+                self.options_frame_widget.set_playlist_mode(
+                    self._last_toggled_playlist_mode
+                )
+            else:
+                # إذا لم تكن قائمة، تأكد من أن المفتاح مغلق
+                print("Info success: It's not a playlist. Ensuring switch is OFF.")
                 self.options_frame_widget.set_playlist_mode(False)
-                final_playlist_mode = False
-                # لا داعي لرسالة تحذير هنا، _enter_info_fetched_state سيعرض واجهة المفرد
-            else:  # طلب مفرد
-                final_playlist_mode = False
 
-            # تحديث حالة الواجهة بناءً على الوضع النهائي
-            self._enter_info_fetched_state(final_playlist_mode)
+            # تحديث الواجهة بناءً على المعلومات والحالة الجديدة للمفتاح
+            self._enter_info_fetched_state()
+
             # تعيين رسالة نجاح نهائية
             status_msg = "Info fetched successfully. Ready to download."
-            if final_playlist_mode:
+            if self.options_frame_widget.get_playlist_mode() and is_actually_playlist:
                 status_msg = "Playlist info fetched. Select items and download."
-            self.update_status(status_msg)  # استخدم دالة التحديث لتغيير اللون أيضًا
+            self.update_status(status_msg)
 
-        self.after(0, _update)  # استخدام 0 للتحديث بأسرع وقت ممكن في دورة الأحداث
+        self.after(0, _update)
 
     def on_info_error(self, error_message):
         """Callback executed when info fetching fails."""
 
         def _update():
             print(f"UI_Interface: Info error callback received: {error_message}")
-            # عرض رسالة الخطأ للمستخدم
             messagebox.showerror(
                 "Information Fetch Error",
                 f"Could not fetch information:\n{error_message}",
             )
-            # إعادة الواجهة لحالة الخمول
+            # --- تعديل: العودة للخمول مع تمكين عناصر التحكم الرئيسية ---
             self._enter_idle_state()
+            # الحالة ستظهر الخطأ قبل استدعاء finished_callback غالبًا
 
         self.after(0, _update)
 
     def on_task_finished(self):
-        """Callback executed when any background task (fetch/download) finishes or is cancelled."""
+        """Callback executed when any background task finishes or is cancelled."""
 
         def _process_finish():
             operation_type = self.current_operation
-            final_status_text = self.status_label.cget(
-                "text"
-            )  # النص الحالي في شريط الحالة
-            final_status_color = self.status_label.cget("text_color")  # اللون الحالي
+            final_status_text = self.status_label.cget("text")
+            final_status_color = self.status_label.cget("text_color")
 
             print(
                 f"UI_Interface: Task finished notification (Type: '{operation_type}'). Final status: '{final_status_text}' (Color: {final_status_color})"
             )
 
-            # التحقق مما إذا كانت العملية قد أُلغيت أو فشلت (بناءً على لون الحالة أو النص)
             was_cancelled = "cancel" in final_status_text.lower()
             was_error = (
                 final_status_color == "red" or "error" in final_status_text.lower()
             )
 
             if was_cancelled:
-                print("UI: Operation was cancelled. Restoring previous state.")
+                print(
+                    "UI: Operation was cancelled. Restoring previous state if info exists."
+                )
                 if self.fetched_info:
-                    # إذا كانت هناك معلومات، استعد الحالة بناءً عليها
-                    is_playlist_mode = self.options_frame_widget.get_playlist_mode()
-                    is_actually_playlist = isinstance(
-                        self.fetched_info.get("entries"), list
-                    )
-                    final_playlist_mode = is_playlist_mode and is_actually_playlist
-                    self._enter_info_fetched_state(final_playlist_mode)
-                    self.update_status("Operation Cancelled.")  # تحديث نهائي للحالة
+                    # استعادة الواجهة بناءً على المعلومات الموجودة وحالة المفتاح الحالية
+                    self._enter_info_fetched_state()
+                    self.update_status("Operation Cancelled.")
                 else:
-                    # إذا لم تكن هناك معلومات (مثل إلغاء الجلب)، عد للخمول
                     self._enter_idle_state()
-                    self.update_status("Info Fetch Cancelled.")  # تحديث نهائي للحالة
+                    self.update_status("Info Fetch Cancelled.")
 
             elif was_error:
-                print("UI: Operation failed. Restoring previous state if possible.")
-                # عادةً ما يكون قد تم عرض الخطأ بالفعل في on_info_error أو تم تسجيله في المنطق
+                print("UI: Operation failed. Restoring previous state if info exists.")
+                # الخطأ يجب أن يكون قد عُرض بالفعل
                 if self.fetched_info:
-                    is_playlist_mode = self.options_frame_widget.get_playlist_mode()
-                    is_actually_playlist = isinstance(
-                        self.fetched_info.get("entries"), list
-                    )
-                    final_playlist_mode = is_playlist_mode and is_actually_playlist
-                    self._enter_info_fetched_state(final_playlist_mode)
-                    # الحالة يجب أن تكون بالفعل تظهر رسالة خطأ
+                    self._enter_info_fetched_state()
                 else:
                     self._enter_idle_state()
-                    # الحالة يجب أن تكون بالفعل تظهر رسالة خطأ
 
             elif operation_type == "fetch" and not was_error and not was_cancelled:
-                # نجاح الجلب تم التعامل معه في on_info_success، لا نفعل شيئًا هنا
                 print(
-                    "UI: Info fetch finished successfully (handled by on_info_success)."
+                    "UI: Info fetch finished successfully (handled by on_info_success). State already updated."
                 )
-                pass
+                pass  # تم التعامل معه بالفعل
 
             elif operation_type == "download" and not was_error and not was_cancelled:
-                # اكتمل التحميل بنجاح
                 print("UI: Download finished successfully. Resetting to idle state.")
                 messagebox.showinfo(
-                    "Download Complete", "Download finished successfully!"
-                )  # رسالة إضافية
-                self._enter_idle_state()  # العودة للحالة الأولية بعد التحميل الناجح
-
-            else:  # حالات أخرى غير متوقعة أو عملية غير معروفة
-                print(
-                    f"UI: Task finished with unknown state or type. Resetting to idle. (Op: {operation_type}, Status: {final_status_text})"
+                    "Download Complete",
+                    f"Download finished successfully!\nFile(s) saved in:\n{self.path_frame_widget.get_path()}",
                 )
                 self._enter_idle_state()
 
-            # إعادة تعيين العملية الحالية في النهاية دائمًا
+            else:
+                print(
+                    f"UI: Task finished with unknown state or type. Resetting. (Op: {operation_type}, Status: {final_status_text})"
+                )
+                self._enter_idle_state()
+
             self.current_operation = None
 
-        # استخدام after لضمان معالجة الرسالة النهائية للحالة قبل تحديد الخطوات التالية
-        self.after(50, _process_finish)  # تأخير بسيط للتأكد من تحديث الحالة
+        self.after(50, _process_finish)
