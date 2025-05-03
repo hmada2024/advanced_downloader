@@ -5,12 +5,11 @@ import os
 import yt_dlp
 import sys
 from pathlib import Path
-
-# استخدام الاستيراد النسبي للملفات داخل نفس الحزمة
 from .exceptions import DownloadCancelled
 import re
 import traceback
-import time  # لاستخدامه المحتمل في التنظيف
+import time
+import humanize
 
 
 # --- دالة find_ffmpeg ---
@@ -23,7 +22,8 @@ def find_ffmpeg():
         if getattr(sys, "frozen", False):
             base_path = Path(sys.executable).parent
         else:
-            base_path = Path(__file__).parent.parent
+            # الحصول على مسار المجلد الذي يحتوي على logic_operations.py ثم الصعود مرتين
+            base_path = Path(__file__).resolve().parent.parent
     except Exception:
         base_path = Path(".")
 
@@ -48,8 +48,6 @@ def find_ffmpeg():
 
 # --- كلاس لجلب المعلومات ---
 class InfoFetcher:
-    """كلاس مسؤول عن عملية جلب معلومات الفيديو/القائمة."""
-
     def __init__(
         self,
         url,
@@ -76,65 +74,61 @@ class InfoFetcher:
         self.status_callback("Fetching information...")
         self.progress_callback(0)
         self._check_cancel("before starting fetch")
-
         ydl_opts = {
             "quiet": True,
             "nocheckcertificate": True,
             "extract_flat": "in_playlist",
             "playlistend": 500,
-            "ignoreerrors": True,  # استمر في حالة وجود خطأ في عنصر واحد
+            "ignoreerrors": True,
             "forcejson": True,
             "skip_download": True,
-            # 'socket_timeout': 15, # إضافة مهلة للشبكة (اختياري)
         }
-
         info_dict = None
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 self._check_cancel("before calling extract_info")
                 info_dict = ydl.extract_info(self.url, download=False)
                 self._check_cancel("after calling extract_info")
-
         except yt_dlp.utils.DownloadError as e:
             error_message = str(e)
+            partial_info = None
             if "ERROR:" in error_message:
                 error_message = error_message.split("ERROR:")[-1].strip()
-            # قد يكون هناك معلومات جزئية مع الخطأ، حاول التحقق
-            partial_info = getattr(e, "partial", False) and getattr(e, "data", None)
+            if getattr(e, "partial", False):
+                partial_info = getattr(e, "data", None)
             if partial_info:
                 print(f"InfoFetcher yt-dlp DownloadError with partial data: {e}")
-                self.success_callback(partial_info)  # إرسال البيانات الجزئية للواجهة
+                self.success_callback(partial_info)  # Try to use partial data
             else:
                 print(f"InfoFetcher yt-dlp DownloadError: {e}")
                 self.error_callback(error_message)
-            return
-
+            return  # Stop processing on error
         except DownloadCancelled:
-            raise
+            raise  # Propagate cancellation
         except Exception as e:
             print(f"InfoFetcher Unexpected Error: {e}")
             traceback.print_exc()
             self.error_callback(f"An unexpected error occurred: {type(e).__name__}")
-            return
-
+            return  # Stop processing on error
         if info_dict:
+            # Clean up potential null entries from ignoreerrors
             if "entries" in info_dict and isinstance(info_dict["entries"], list):
                 valid_entries = [entry for entry in info_dict["entries"] if entry]
-                if not valid_entries and info_dict.get("extractor_key") == "YoutubeTab":
-                    # حالة خاصة: قائمة تشغيل يوتيوب فارغة أو خاصة
+                # Handle case where playlist is empty or private
+                if (
+                    not valid_entries and info_dict.get("extractor_key") == "YoutubeTab"
+                ):  # Check specific extractor if needed
                     print("InfoFetcher: YouTube playlist seems empty or private.")
                     self.error_callback(
                         "Playlist is empty, private, or could not be accessed."
                     )
                     return
-                info_dict["entries"] = (
-                    valid_entries  # تحديث القائمة بالإدخالات الصالحة فقط
-                )
+                info_dict["entries"] = valid_entries  # Update with only valid entries
 
             self.status_callback("Information fetched successfully.")
             self.success_callback(info_dict)
         else:
-            # قد يحدث هذا إذا لم يتم العثور على الفيديو/القائمة على الإطلاق
+            # This might happen if the URL is completely invalid
             print(
                 "InfoFetcher: No information dictionary returned (URL might be invalid)."
             )
@@ -148,15 +142,17 @@ class InfoFetcher:
         except DownloadCancelled as e:
             self.status_callback(str(e))
             print(e)
-        except Exception as e:
+        except Exception as e:  # Catch any unexpected errors from _fetch_info_core
             print(f"InfoFetcher FATAL UNEXPECTED Error in run: {e}")
             traceback.print_exc()
+            # Ensure error callback is called if not already
             self.error_callback(
                 f"A critical unexpected error occurred: {type(e).__name__}"
             )
         finally:
+            # This block ALWAYS runs, regardless of success, error, or cancellation
             print("InfoFetcher: Reached finally block, calling finished_callback.")
-            self.finished_callback()
+            self.finished_callback()  # Notify UI that the fetch operation has concluded
 
 
 # --- كلاس لتنفيذ التحميل ---
@@ -190,7 +186,9 @@ class Downloader:
         self.finished_callback = finished_callback
         self.last_downloaded_info = None
         self.final_known_path = None
-        self.current_playlist_item_dl_index = 0
+        # Counter for the *currently processing* playlist item index (1-based for display)
+        self._current_processing_playlist_idx_display = 1  # Start at 1 for display
+        self._last_hook_playlist_index = 0  # Track last index seen from hook
         self._cleaned_up_path = None
 
     def _check_cancel(self, stage=""):
@@ -200,58 +198,77 @@ class Downloader:
     def _clean_filename(self, filename):
         if not filename:
             return filename
+        # Remove potentially problematic characters for Windows filenames
         cleaned = re.sub(r'[\\/*?:"<>|]', "", filename)
+        # Replace colons usually used in timestamps or titles
         cleaned = cleaned.replace(":", " -")
+        # Replace multiple whitespace characters with a single space
         cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        # Remove trailing dots or spaces which can cause issues on Windows
         cleaned = cleaned.rstrip(". ")
+        # Ensure filename is not empty after cleaning
         if not cleaned:
             return "downloaded_file"
         return cleaned
 
     def _my_hook(self, d):
+        """Hook for download progress, managing state and counters accurately."""
         try:
             self._check_cancel("during progress hook")
         except DownloadCancelled as e:
+            # Re-raise as an exception yt-dlp understands to stop the download cleanly
             raise yt_dlp.utils.DownloadCancelled(str(e))
 
         status = d.get("status")
+        info_dict = d.get("info_dict", {})
+        hook_playlist_index = info_dict.get(
+            "playlist_index"
+        )  # Index from yt-dlp (1-based)
 
-        if status == "finished":
-            filepath = d.get("info_dict", {}).get("filepath") or d.get("filename")
-            if filepath:
-                self.final_known_path = filepath
-                self.last_downloaded_info = d.get(
-                    "info_dict", self.last_downloaded_info
+        # --- Update internal counter based on hook's playlist_index ---
+        if self.is_playlist and hook_playlist_index is not None:
+            if hook_playlist_index > self._last_hook_playlist_index:
+                print(
+                    f"Hook detected transition to playlist index: {hook_playlist_index}. Updating display counter."
                 )
+                # Update the display counter only when yt-dlp reports moving to the next item
+                self._current_processing_playlist_idx_display = hook_playlist_index
+                self._last_hook_playlist_index = hook_playlist_index
+            # If hook index is same or less, don't change display counter (still processing same item)
+
+        # --- Process based on status ---
+        if status == "finished":
+            filepath = info_dict.get("filepath") or d.get("filename")
+            if filepath:
+                self.final_known_path = (
+                    filepath  # Store the reported path (might be temp or final)
+                )
+                self.last_downloaded_info = info_dict  # Store associated info
                 print(f"Hook 'finished': Path reported '{filepath}'.")
+
                 base_filename = os.path.basename(filepath)
-                # --- تحسين رسالة الانتهاء ---
-                # التحقق مما إذا كان الملف قد تم دمجه (الامتداد النهائي موجود)
+                # Check if it's likely the final merged/converted file
                 final_ext_present = any(
                     base_filename.lower().endswith(ext)
-                    for ext in [".mp4", ".mp3", ".mkv", ".webm"]
+                    for ext in [".mp4", ".mp3", ".mkv", ".webm", ".opus", ".ogg"]
                 )
-                display_name = self._clean_filename(
-                    d.get("info_dict", {}).get("title", base_filename)
-                )
+                title = info_dict.get("title")
+                display_name = self._clean_filename(title if title else base_filename)
 
                 if final_ext_present:
-                    # إذا كان الامتداد النهائي موجودًا، فهذا هو نهاية العنصر
+                    # This signifies the *completion* of processing for the current item
                     status_msg = f"Finished: {display_name}"
-                    if self.is_playlist:
-                        # زيادة العداد فقط عند الانتهاء الفعلي
-                        self.current_playlist_item_dl_index += 1
-                        print(
-                            f"Playlist item index counter incremented to: {self.current_playlist_item_dl_index}"
-                        )
+                    # The display counter should already be correct from the 'downloading' phase update
                 else:
-                    # إذا كان الامتداد غير نهائي، فهو لا يزال قيد المعالجة (تنزيل جزء، دمج قادم)
+                    # This is likely an intermediate file (e.g., video part before merge)
                     status_msg = f"Processing: {display_name}..."
 
                 self.status_callback(status_msg)
-                self.progress_callback(1.0)
-
+                self.progress_callback(
+                    1.0
+                )  # Progress is 100% for this *specific file/stage*
             else:
+                # Should ideally not happen if status is 'finished'
                 print("Hook 'finished' but no filepath found in hook data.")
                 self.status_callback("Processing finished (unknown file path).")
                 self.progress_callback(1.0)
@@ -259,42 +276,83 @@ class Downloader:
         elif status == "downloading":
             total_bytes = d.get("total_bytes") or d.get("total_bytes_estimate")
             downloaded_bytes = d.get("downloaded_bytes")
-            if total_bytes and downloaded_bytes is not None:
-                progress = downloaded_bytes / total_bytes
-                self.progress_callback(max(0.0, min(1.0, progress)))
+
+            if downloaded_bytes is not None:
+                # Calculate progress
+                progress = 0.0
+                percent_str = "N/A"
+                if total_bytes and total_bytes > 0:
+                    progress = max(0.0, min(1.0, downloaded_bytes / total_bytes))
+                    percent_str = f"{progress:.1%}"  # Format as percentage
+                self.progress_callback(progress)  # Update progress bar
+
+                # Format sizes
+                downloaded_size_str = humanize.naturalsize(
+                    downloaded_bytes, binary=True
+                )
+                total_size_str = (
+                    humanize.naturalsize(total_bytes, binary=True)
+                    if total_bytes
+                    else "Unknown size"
+                )
+
+                # Format speed
+                speed = d.get("speed")
+                speed_str = "Calculating..."
+                if speed:
+                    speed_str = (
+                        humanize.naturalsize(speed, binary=True, gnu=True) + "/s"
+                    )  # e.g., "1.2 MiB/s"
+
+                # Format ETA
+                eta = d.get("eta")
+                eta_str = "Calculating..."
+                try:
+                    # Only show eta if it's a valid number (seconds)
+                    if eta is not None and isinstance(eta, (int, float)) and eta >= 0:
+                        eta_str = humanize.naturaldelta(eta) + " remaining"
+                except (TypeError, ValueError):
+                    pass  # Keep "Calculating..." on error
+
+                # Construct status message prefix for playlists
                 status_prefix = ""
                 if self.is_playlist and self.playlist_items_count > 0:
-                    display_index = self.current_playlist_item_dl_index + 1
-                    status_prefix = (
-                        f"Item {display_index}/{self.playlist_items_count} - "
-                    )
-                percent_str = d.get("_percent_str", "N/A").strip()
-                downloaded_str = d.get("_downloaded_bytes_str", "N/A")
-                total_bytes_str = d.get("_total_bytes_str", "N/A")
-                speed_str = d.get("_speed_str", "N/A")
-                eta_str = d.get("_eta_str", "N/A")
-                status_msg = f"{status_prefix}Downloading: {percent_str} ({downloaded_str}/{total_bytes_str}) at {speed_str}, ETA: {eta_str}"
+                    # Use the updated display counter
+                    status_prefix = f"Item {self._current_processing_playlist_idx_display}/{self.playlist_items_count} - "
+
+                # Assemble the full status message
+                status_msg = f"{status_prefix}{percent_str} ({downloaded_size_str} / {total_size_str}) - Speed: {speed_str} - {eta_str}"
                 self.status_callback(status_msg)
+
             else:
-                self.status_callback(f"Status: {d.get('status', 'N/A')}...")
+                # Fallback status if byte counts aren't available (e.g., connecting)
+                self.status_callback(f"Status: {d.get('status', 'Connecting')}...")
 
         elif status == "error":
+            # Report errors encountered during the download process by yt-dlp
             self.status_callback("Error during download process reported by yt-dlp.")
             print(
                 f"yt-dlp hook reported error: {d.get('error', 'Unknown yt-dlp error')}"
             )
+            # Consider if you want to raise an exception here to stop immediately
 
     def _build_format_string(self):
-        # (هذا الجزء لم يتغير، يبدو أنه كان صحيحًا)
+        """Builds the format selection string and determines output extension."""
         format_choice_lower = self.format_choice.lower()
-        output_ext = "mp4"
+        output_ext = "mp4"  # Default to mp4
         postprocessors = []
         final_format_string = None
 
+        # Priority 1: Specific quality ID selected for a single video
         if not self.is_playlist and self.quality_format_id:
             final_format_string = self.quality_format_id
             print(f"Using specific quality format ID: {self.quality_format_id}")
+            # Attempting to guess extension from format ID is complex. Let yt-dlp handle it usually.
+            # However, if user explicitly wants MP3, override extension and add postprocessor.
             if "audio (mp3)" in format_choice_lower:
+                print(
+                    "Warning: MP3 format chosen despite specific quality ID selection. Will attempt audio extraction."
+                )
                 output_ext = "mp3"
                 if self.ffmpeg_path:
                     postprocessors.append(
@@ -305,10 +363,15 @@ class Downloader:
                         }
                     )
                 else:
-                    print("Warning: MP3 requested but FFmpeg not found.")
+                    print("Error: MP3 conversion requires FFmpeg, which was not found.")
+                    # Decide how to handle this: fail, warn, or let yt-dlp try without conversion?
+                    # For now, let it proceed, yt-dlp might download best audio in another format.
+                    output_ext = None  # Let yt-dlp decide extension
+
+        # Priority 2: General format choice (or playlist)
         else:
             if "audio (mp3)" in format_choice_lower:
-                final_format_string = "bestaudio/best"
+                final_format_string = "bestaudio/best"  # Select best audio available
                 output_ext = "mp3"
                 if self.ffmpeg_path:
                     postprocessors.append(
@@ -318,26 +381,31 @@ class Downloader:
                             "preferredquality": "192",
                         }
                     )
+                    print("Selecting best audio for MP3 conversion.")
                 else:
                     print(
-                        "Warning: MP3 requested but FFmpeg not found. Format might not be MP3."
+                        "Warning: MP3 requested but FFmpeg not found. Downloading best audio format."
                     )
-                    output_ext = None
+                    output_ext = None  # Let yt-dlp decide extension
             elif self.is_playlist:
+                # Default for playlists: Max 720p video, best audio, merged into MP4
                 final_format_string = "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720][ext=mp4]/best[height<=720]"
                 output_ext = "mp4"
                 print("Using default playlist format (max 720p MP4)")
             else:
+                # Single video using general format dropdown
+                height_limit = None
                 if "<= 720p" in format_choice_lower:
-                    final_format_string = "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720][ext=mp4]/best[height<=720]"
-                    print("Using general format: max 720p MP4")
+                    height_limit = 720
                 elif "<= 480p" in format_choice_lower:
-                    final_format_string = "bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/best[height<=480][ext=mp4]/best[height<=480]"
-                    print("Using general format: max 480p MP4")
+                    height_limit = 480
                 elif "<= 360p" in format_choice_lower:
-                    final_format_string = "bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=360]+bestaudio/best[height<=360][ext=mp4]/best[height<=360]"
-                    print("Using general format: max 360p MP4")
-                else:
+                    height_limit = 360
+
+                if height_limit:
+                    final_format_string = f"bestvideo[height<={height_limit}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={height_limit}]+bestaudio/best[height<={height_limit}][ext=mp4]/best[height<={height_limit}]"
+                    print(f"Using general format: max {height_limit}p MP4")
+                else:  # Default "Best Quality MP4 (<= 1080p+)"
                     final_format_string = "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best[ext=mp4]/best"
                     print("Using general format: best available MP4 (1080p+)")
                 output_ext = "mp4"
@@ -345,122 +413,134 @@ class Downloader:
         return final_format_string, output_ext, postprocessors
 
     def _download_core(self):
+        """Sets up yt-dlp options and initiates the download."""
+        # Reset state variables for this download attempt
         self.last_downloaded_info = None
         self.final_known_path = None
-        self.current_playlist_item_dl_index = 0
+        self._current_processing_playlist_idx_display = 1  # Reset display counter
+        self._last_hook_playlist_index = 0  # Reset hook index tracker
         self._cleaned_up_path = None
         self._check_cancel("before starting download")
 
-        # --- تعديل بناء قالب اسم الملف ---
-        # تأكد من استخدام الشرطة المائلة الصحيحة لنظام التشغيل
-        # ووضع العنوان دائمًا
+        # Build output path template
+        # Using os.path.join for cross-platform compatibility
+        # Filename pattern includes index (if playlist) and title. Extension added by yt-dlp.
         if self.is_playlist:
-            # استخدام format لضمان تفسير الحقول بشكل صحيح
             outtmpl_pattern = os.path.join(
                 self.save_path, "%(playlist_index)s. %(title)s.%(ext)s"
             )
         else:
             outtmpl_pattern = os.path.join(self.save_path, "%(title)s.%(ext)s")
-        # -----------------------------------
 
-        final_format_string, output_ext, core_postprocessors = (
+        # Get format selection string, output extension hint, and postprocessors
+        final_format_string, output_ext_hint, core_postprocessors = (
             self._build_format_string()
         )
 
-        # --- إزالة بناء القالب اليدوي باستخدام pathlib ---
-        # final_outtmpl = ... (تمت إزالته)
-        # ---------------------------------------------
-
+        # --- yt-dlp Options ---
         ydl_opts = {
             "progress_hooks": [self._my_hook],
-            # --- استخدام outtmpl pattern مباشرة ---
-            "outtmpl": outtmpl_pattern,
-            # --------------------------------------
-            "nocheckcertificate": True,
-            "ignoreerrors": self.is_playlist,
-            "merge_output_format": "mp4",  # تفضيل الدمج لـ MP4
-            "postprocessors": core_postprocessors,
-            "restrictfilenames": False,  # السماح بالمسافات وغيرها
-            # --- إضافة خيار مهم: إصلاح ما بعد المعالجة للدمج ---
-            # هذا قد يساعد في ضمان الدمج الصحيح لـ MP4 في بعض الحالات
-            "postprocessor_args": {
-                "ffmpeg": [
-                    "-vcodec",
-                    "copy",
-                    "-acodec",
-                    "copy",
-                ]  # نسخ الترميز لتسريع الدمج
-            },
-            # --- خيار لطلب معلومات إضافية (قد يبطئ قليلاً) ---
-            # 'writeinfojson': True, # للحصول على ملف .info.json لكل فيديو
+            "outtmpl": outtmpl_pattern,  # Template for output filename
+            "nocheckcertificate": True,  # Ignore SSL certificate errors
+            "ignoreerrors": self.is_playlist,  # Continue download if one item in playlist fails
+            "merge_output_format": "mp4",  # Prefer MP4 container when merging formats
+            "postprocessors": core_postprocessors,  # Audio conversion if requested
+            "restrictfilenames": False,  # Allow spaces and wider range of characters in filenames
+            # 'postprocessor_args': {             # Arguments for FFmpeg postprocessing (e.g., faster merge)
+            #      'ffmpeg': ['-vcodec', 'copy', '-acodec', 'copy'] # If codecs are compatible
+            # },
+            # 'writethumbnail': True,             # Download thumbnail image alongside video (optional)
+            # 'writeinfojson': True,            # Create .info.json file with metadata (optional)
+            # 'socket_timeout': 30,             # Network timeout in seconds (optional)
         }
 
+        # Add FFmpeg location if found
         if self.ffmpeg_path:
             ydl_opts["ffmpeg_location"] = self.ffmpeg_path
-        elif core_postprocessors:
-            self.status_callback("Warning: FFmpeg needed but not found.")
+        elif core_postprocessors:  # Warn if FFmpeg is needed but missing
+            self.status_callback("Warning: FFmpeg needed for conversion but not found.")
 
+        # Playlist specific options
         if self.is_playlist:
-            ydl_opts["noplaylist"] = False
+            ydl_opts["noplaylist"] = False  # Process as a playlist
             if self.playlist_items:
-                ydl_opts["playlist_items"] = self.playlist_items
+                ydl_opts["playlist_items"] = (
+                    self.playlist_items
+                )  # Download specific items
         else:
-            ydl_opts["noplaylist"] = True
+            ydl_opts["noplaylist"] = True  # Process as a single URL
 
+        # Add the format selection string if one was determined
         if final_format_string:
             ydl_opts["format"] = final_format_string
+        # Ensure 'format' key is removed if no specific format is needed (let yt-dlp choose default best)
         elif "format" in ydl_opts:
             del ydl_opts["format"]
 
-        # طباعة الخيارات النهائية للتحقق
+        # Print final options for debugging (optional)
         print("Final yt-dlp options:", ydl_opts)
 
+        # --- Start Download ---
         self.status_callback("Starting download...")
         self.progress_callback(0)
         self._check_cancel("right before calling ydl.download()")
 
         download_successful = False
         try:
+            # Use yt-dlp's context manager
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([self.url])
+                ydl.download([self.url])  # Pass URL as a list
+            # If no exceptions were raised by yt-dlp, consider it successful so far
             download_successful = True
-            self._check_cancel("immediately after ydl.download() finished")
+            self._check_cancel(
+                "immediately after ydl.download() finished"
+            )  # Check cancellation again
+
         except yt_dlp.utils.DownloadCancelled as e:
-            raise DownloadCancelled(str(e))
+            # Handle cancellation requested via the hook
+            raise DownloadCancelled(str(e))  # Re-raise our custom exception
         except yt_dlp.utils.DownloadError as dl_err:
+            # Handle specific download errors from yt-dlp
             error_message = str(dl_err).split("ERROR:")[-1].strip()
             print(f"Downloader yt-dlp DownloadError: {dl_err}")
             self.status_callback(f"Download Error: {error_message}")
-            # تحقق مما إذا كان الخطأ متعلقًا بالفهرس المطلوب
-            if "requested format not available" in error_message.lower():
-                # قد يكون من المفيد عرض رسالة أكثر تحديدًا هنا
-                pass
+            # Keep download_successful as False
         except Exception as e:
+            # Handle any other unexpected errors during download
             self._log_unexpected_error(e, "during yt-dlp download execution")
+            # Keep download_successful as False
 
+        # Final cancellation check after the download block
         self._check_cancel("after download block completion")
 
+        # --- Post-Download Cleanup ---
         if not download_successful:
-            print("Download process reported errors. Skipping final cleanup.")
-            return
+            print(
+                "Download process reported errors or was unsuccessful. Skipping final cleanup."
+            )
+            return  # Exit if download failed or was cancelled before completion
 
+        # If download seemed successful, attempt final filename cleanup
         try:
-            # تأخير بسيط قبل التنظيف للسماح بإغلاق الملفات
-            time.sleep(0.2)
+            time.sleep(0.2)  # Small delay to allow file handles to close
             self._cleanup_final_file()
         except Exception as e:
             self._log_unexpected_error(e, "during final file cleanup")
-            self.status_callback("Warning: Download complete, but cleanup failed.")
+            # Inform user, but download itself might be okay
+            self.status_callback(
+                "Warning: Download complete, but filename cleanup failed."
+            )
 
     def _cleanup_final_file(self):
-        # (الكود هنا لم يتغير، يعتمد على final_known_path)
-        if self._cleaned_up_path:
+        """Cleans the filename of the final downloaded file based on stored info."""
+        if self._cleaned_up_path:  # Avoid cleaning the same path multiple times
             print(f"Cleanup skipped: Already cleaned path '{self._cleaned_up_path}'")
             return
 
         print("Attempting final file cleanup...")
         if not self.final_known_path:
             print("Cleanup skipped: No final file path was reported by hooks.")
+            # This might indicate an issue where the 'finished' hook didn't run correctly
             self.status_callback(
                 "Warning: Download finished, but final file path is unknown."
             )
@@ -469,108 +549,131 @@ class Downloader:
         expected_final_path_obj = Path(self.final_known_path)
         print(f"Cleanup: Checking final path '{expected_final_path_obj}'")
 
-        # زيادة وقت الانتظار قليلًا
-        time.sleep(0.3)
+        # Add a slightly longer delay and check existence carefully
+        time.sleep(0.4)  # Increased delay
         if not expected_final_path_obj.exists():
-            # محاولة إيجاد الملف باسم متوقع (بناءً على آخر معلومات)
+            print(
+                f"Cleanup Error: Expected final file '{expected_final_path_obj}' not found after delay."
+            )
+            # Try to guess the filename based on last known info_dict as a fallback
             if self.last_downloaded_info:
-                expected_name = f"{self.last_downloaded_info.get('playlist_index', '')}. {self.last_downloaded_info.get('title', '')}.{self.last_downloaded_info.get('ext', 'mp4')}"
-                alt_path = expected_final_path_obj.with_name(
-                    self._clean_filename(expected_name)
+                pl_idx = self.last_downloaded_info.get("playlist_index")
+                pl_idx_str = (
+                    f"{pl_idx}." if pl_idx is not None else ""
+                )  # Add dot only if index exists
+                # Use expected extension based on format or default to mp4
+                expected_ext = self._build_format_string()[1] or "mp4"
+                expected_name = f"{pl_idx_str}{self.last_downloaded_info.get('title', 'untitled')}.{expected_ext}"
+                alt_path = expected_final_path_obj.parent / self._clean_filename(
+                    expected_name
                 )
+                print(f"Cleanup: Checking alternative path '{alt_path}'")
                 if alt_path.exists():
                     print(f"Found file at alternative path: {alt_path}")
-                    expected_final_path_obj = alt_path
+                    expected_final_path_obj = alt_path  # Use the alternative path
                 else:
                     print(
-                        f"Cleanup Error: Expected final file '{expected_final_path_obj}' and alt '{alt_path}' not found."
+                        f"Cleanup Error: Alternative path '{alt_path}' also not found."
                     )
                     self.status_callback(
                         f"Error: Processing completed but final file '{expected_final_path_obj.name}' is missing."
                     )
                     return
             else:
+                # No info to guess alternative path
                 print(
-                    f"Cleanup Error: Expected final file '{expected_final_path_obj}' not found and no info to guess alternative."
+                    f"Cleanup Error: File not found and no info to guess alternative."
                 )
                 self.status_callback(
                     f"Error: Processing completed but final file '{expected_final_path_obj.name}' is missing."
                 )
                 return
 
+        # --- Determine Target Filename ---
         current_basename = expected_final_path_obj.name
-        # --- استخدام اسم الملف من المعلومات المجوبة إذا كان متاحًا ---
-        # هذا قد يكون أدق من تنظيف الاسم الحالي الذي قد يكون تم تعديله بواسطة yt-dlp
-        target_basename = current_basename
+        target_basename = current_basename  # Default to current name
         if self.last_downloaded_info:
             base_title = self.last_downloaded_info.get("title", "")
-            base_ext = self.last_downloaded_info.get(
-                "ext", expected_final_path_obj.suffix.lstrip(".")
-            )
+            # Get extension from the actual file object as it exists
+            base_ext = expected_final_path_obj.suffix.lstrip(".")
             if self.is_playlist:
                 playlist_index = self.last_downloaded_info.get("playlist_index")
+                # Use the reliable index from info_dict if available
                 if playlist_index is not None:
                     target_basename = f"{playlist_index}. {base_title}.{base_ext}"
-                else:  # في حال لم يتوفر الفهرس لسبب ما
+                else:  # Fallback if index is missing for some reason
                     target_basename = f"{base_title}.{base_ext}"
-            else:
+            else:  # Single video
                 target_basename = f"{base_title}.{base_ext}"
-            target_basename = self._clean_filename(
-                target_basename
-            )  # تنظيف الاسم المستهدف
-        # -------------------------------------------------------
+            # Clean the potentially constructed target name
+            target_basename = self._clean_filename(target_basename)
+        else:
+            # If no info, just clean the current name reported by the hook
+            target_basename = self._clean_filename(current_basename)
 
-        cleaned_basename = self._clean_filename(
-            current_basename
-        )  # تنظيف الاسم الحالي للمقارنة
-        new_final_filepath_obj = expected_final_path_obj.with_name(
-            target_basename
-        )  # استخدام الاسم المستهدف
-
-        final_message = f"Download complete: {target_basename}"
+        # --- Perform Rename (if necessary) ---
+        new_final_filepath_obj = expected_final_path_obj.with_name(target_basename)
+        final_message = f"Download complete: {target_basename}"  # Success message assumes rename works or isn't needed
 
         if new_final_filepath_obj != expected_final_path_obj:
             print(f"Attempting rename: '{current_basename}' -> '{target_basename}'")
             try:
+                # Final check for existence before renaming
                 if expected_final_path_obj.exists():
                     expected_final_path_obj.rename(new_final_filepath_obj)
                     print(f"Rename successful: '{new_final_filepath_obj}'")
-                    self._cleaned_up_path = str(new_final_filepath_obj)
+                    self._cleaned_up_path = str(
+                        new_final_filepath_obj
+                    )  # Store cleaned path
                 else:
+                    # File might have been deleted externally between check and rename
                     print(f"File disappeared before rename: {expected_final_path_obj}")
                     final_message = f"Warning: Download ok, but file missing before rename ({current_basename})"
-                    self._cleaned_up_path = None
+                    self._cleaned_up_path = None  # Rename failed
             except OSError as e:
+                # Handle potential OS errors during rename (e.g., permissions, file in use)
                 print(f"Error during final rename for '{current_basename}': {e}")
                 final_message = f"Download complete (rename failed): {current_basename}"
+                # Assume the original path is the final one, even if unclean
                 self._cleaned_up_path = str(expected_final_path_obj)
         else:
+            # No rename needed, filename was already clean/correct
             print("Filename already correct. No rename needed.")
-            self._cleaned_up_path = str(expected_final_path_obj)
+            self._cleaned_up_path = str(expected_final_path_obj)  # Store the path
 
-        # تحديث الحالة بالرسالة النهائية
-        # self.status_callback(final_message) # <- الهوك يقوم الآن بإظهار رسالة "Finished: ..."
+        # Note: The status bar is updated by the 'finished' hook message ("Finished: ...")
+        # We don't need to call self.status_callback(final_message) here usually.
 
     def run(self):
+        """Executes the download process, handling errors and final callback."""
         download_error_occurred = False
-        self._cleaned_up_path = None
+        self._cleaned_up_path = None  # Reset cleaned path tracker
 
         try:
             self._download_core()
         except DownloadCancelled as e:
             self.status_callback(str(e))
             print(e)
-            download_error_occurred = True
+            download_error_occurred = (
+                True  # Treat cancellation as non-successful completion
+            )
         except Exception as e:
+            # Catch any other unexpected error from _download_core or _cleanup_final_file
             self._log_unexpected_error(e, "in main run loop")
             download_error_occurred = True
         finally:
+            # Ensure finished_callback is always called
             print("Downloader: Reached finally block, calling finished_callback.")
             self.finished_callback()
+            # Final status message is typically set by the hook or error handlers
 
     def _log_unexpected_error(self, e, context=""):
+        """Logs unexpected errors with traceback and updates status."""
         print(f"--- UNEXPECTED ERROR ({context}) ---")
         traceback.print_exc()
         print("------------------------------------")
-        self.status_callback(f"Unexpected Error ({type(e).__name__})! Check logs.")
+        # Provide a user-friendly error message, avoid showing raw exception details directly
+        self.status_callback(
+            f"Unexpected Error ({type(e).__name__})! Check logs for details."
+        )
         print(f"Unexpected Error during download ({context}): {e}")
