@@ -13,39 +13,81 @@ from .ui_components.bottom_controls_frame import BottomControlsFrame
 from .ui_components.quality_selector import QualitySelector
 from .ui_components.playlist_selector import PlaylistSelector
 
+
 # الكلاس الرئيسي للواجهة، يرث من ctk.CTk (النافذة الرئيسية)
 class UserInterface(ctk.CTk):
     def __init__(self, logic_handler):
         super().__init__()
-        self.logic = logic_handler; self.fetched_info = None; self.current_operation = None; self._last_toggled_playlist_mode = True
-        self.title("Advanced Downloader"); self.geometry("850x750"); ctk.set_appearance_mode("System"); ctk.set_default_color_theme("blue")
-        self.grid_columnconfigure(1, weight=1); self.grid_rowconfigure(6, weight=1)
-        self.top_frame_widget = TopInputFrame(self, fetch_command=self.fetch_video_info); self.top_frame_widget.grid(row=0, column=0, columnspan=3, padx=15, pady=(15, 5), sticky="ew")
-        self.options_frame_widget = OptionsControlFrame(self, toggle_playlist_command=self.toggle_playlist_mode); self.options_frame_widget.grid(row=1, column=0, columnspan=3, padx=15, pady=5, sticky="ew")
-        self.path_frame_widget = PathSelectionFrame(self, browse_callback=self.browse_path_logic); self.path_frame_widget.grid(row=2, column=0, columnspan=3, padx=15, pady=5, sticky="ew")
-        self.dynamic_area_label = ctk.CTkLabel(self, text="", font=ctk.CTkFont(weight="bold")); self.dynamic_area_label.grid(row=3, column=0, columnspan=3, padx=20, pady=(10,0), sticky="w")
-        self.quality_selector_widget = QualitySelector(self); self.playlist_selector_widget = PlaylistSelector(self)
-        self.bottom_controls_widget = BottomControlsFrame(self, download_command=self.start_download_ui, cancel_command=self.cancel_operation_ui); self.bottom_controls_widget.grid(row=7, column=0, columnspan=3, padx=15, pady=(10, 5), sticky="ew")
-        self.progress_bar = ctk.CTkProgressBar(self); self.progress_bar.grid(row=8, column=0, columnspan=3, padx=20, pady=(0, 5), sticky="ew"); self.progress_bar.set(0)
+        self.logic = logic_handler
+        self.fetched_info = None
+        self.current_operation = None
+        self._last_toggled_playlist_mode = True
+        self.title("Advanced Downloader")
+        self.geometry("850x750")
+        ctk.set_appearance_mode("System")
+        ctk.set_default_color_theme("blue")
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(6, weight=1)
+        self.top_frame_widget = TopInputFrame(self, fetch_command=self.fetch_video_info)
+        self.top_frame_widget.grid(
+            row=0, column=0, columnspan=3, padx=15, pady=(15, 5), sticky="ew"
+        )
+        self.options_frame_widget = OptionsControlFrame(
+            self, toggle_playlist_command=self.toggle_playlist_mode
+        )
+        self.options_frame_widget.grid(
+            row=1, column=0, columnspan=3, padx=15, pady=5, sticky="ew"
+        )
+        self.path_frame_widget = PathSelectionFrame(
+            self, browse_callback=self.browse_path_logic
+        )
+        self.path_frame_widget.grid(
+            row=2, column=0, columnspan=3, padx=15, pady=5, sticky="ew"
+        )
+        self.dynamic_area_label = ctk.CTkLabel(
+            self, text="", font=ctk.CTkFont(weight="bold")
+        )
+        self.dynamic_area_label.grid(
+            row=3, column=0, columnspan=3, padx=20, pady=(10, 0), sticky="w"
+        )
+        self.quality_selector_widget = QualitySelector(self)
+        self.playlist_selector_widget = PlaylistSelector(self)
+        self.bottom_controls_widget = BottomControlsFrame(
+            self,
+            download_command=self.start_download_ui,
+            cancel_command=self.cancel_operation_ui,
+        )
+        self.bottom_controls_widget.grid(
+            row=7, column=0, columnspan=3, padx=15, pady=(10, 5), sticky="ew"
+        )
+        self.progress_bar = ctk.CTkProgressBar(self)
+        self.progress_bar.grid(
+            row=8, column=0, columnspan=3, padx=20, pady=(0, 5), sticky="ew"
+        )
+        self.progress_bar.set(0)
 
-        # --- تعديل: زيادة حجم الخط والهوامش ومحاذاة النص ---
+        # --- استخدام الكود المعدل لـ status_label ---
         self.status_label = ctk.CTkLabel(
             self,
             text="Enter URL and click Fetch Info.",
             text_color="gray",
-            font=ctk.CTkFont(size=13), # <-- زيادة حجم الخط قليلاً
-            justify="left", # <-- محاذاة النص لليسار عند وجود أسطر متعددة
-            anchor="w" # <-- تثبيت النص جهة اليسار داخل الخلية
+            font=ctk.CTkFont(size=13),  # <-- زيادة حجم الخط قليلاً
+            justify="left",  # <-- محاذاة النص لليسار عند وجود أسطر متعددة
+            anchor="w",  # <-- تثبيت النص جهة اليسار داخل الخلية
         )
         self.status_label.grid(
-            row=9, column=0, columnspan=3,
-            padx=25, # <-- زيادة الهامش الأفقي
-            pady=(0, 10), sticky="ew"
+            row=9,
+            column=0,
+            columnspan=3,
+            padx=25,  # <-- زيادة الهامش الأفقي
+            pady=(0, 10),
+            sticky="ew",
         )
-        # ----------------------------------------------------
+        # -------------------------------------------
 
         self._enter_idle_state()
 
+    # --- باقي الدوال تبقى كما هي في النسخة السابقة ---
     def _enable_main_controls(self, enable_playlist_switch=True):
         self.top_frame_widget.enable_fetch()
         self.options_frame_widget.format_combobox.configure(state="normal")
@@ -146,7 +188,8 @@ class UserInterface(ctk.CTk):
         self.bottom_controls_widget.show_cancel_button()
 
     def browse_path_logic(self):
-        if directory := filedialog.askdirectory(title="Select Download Folder"):
+        directory = filedialog.askdirectory(title="Select Download Folder")
+        if directory:
             self.path_frame_widget.set_path(directory)
         if (
             self.fetched_info
@@ -179,7 +222,6 @@ class UserInterface(ctk.CTk):
             self._enter_info_fetched_state()
 
     def start_download_ui(self):
-        """Handles the 'Download' button click and gathers all necessary info."""
         url = self.top_frame_widget.get_url()
         save_path = self.path_frame_widget.get_path()
         format_choice = self.options_frame_widget.get_format_choice()
@@ -196,18 +238,13 @@ class UserInterface(ctk.CTk):
         if not self.fetched_info:
             messagebox.showerror("Error", "Fetch info first.")
             return
-
         quality_format_id = None
         playlist_items_string = None
         selected_items_count = 0
-        total_playlist_count = 0  # <-- إضافة: متغيرات جديدة
+        total_playlist_count = 0
         is_actually_playlist = isinstance(self.fetched_info.get("entries"), list)
-
-        # --- تعديل: حساب العدد الكلي وإرساله ---
         if is_actually_playlist:
             total_playlist_count = len(self.fetched_info.get("entries", []))
-        # --------------------------------------
-
         if is_playlist_mode_on and is_actually_playlist:
             playlist_items_string = (
                 self.playlist_selector_widget.get_selected_items_string()
@@ -217,9 +254,7 @@ class UserInterface(ctk.CTk):
                     "Selection Error", "No playlist items selected for download."
                 )
                 return
-            selected_items_count = len(
-                playlist_items_string.split(",")
-            )  # هذا هو عدد العناصر المختارة
+            selected_items_count = len(playlist_items_string.split(","))
             quality_format_id = None
             print(
                 f"UI: Starting playlist download. Selected: {selected_items_count}, Total: {total_playlist_count}, Items: {playlist_items_string}"
@@ -231,8 +266,7 @@ class UserInterface(ctk.CTk):
             ):
                 return
             quality_format_id = self.quality_selector_widget.get_selected_id()
-            selected_items_count = 1  # فيديو واحد فقط تم اختياره
-            # إذا كانت قائمة ولكن المستخدم اختار تحميل الأول فقط، العدد الكلي يبقى كما هو
+            selected_items_count = 1
             print(
                 f"UI: Starting single video download. Format ID: {quality_format_id}, General: {format_choice}, Playlist Total (if any): {total_playlist_count}"
             )
@@ -242,7 +276,6 @@ class UserInterface(ctk.CTk):
                 "Mismatch between UI state and fetched info during download.",
             )
             return
-
         self.current_operation = "download"
         self._enter_downloading_state()
         if self.logic:
@@ -253,10 +286,8 @@ class UserInterface(ctk.CTk):
                 quality_format_id=quality_format_id,
                 is_playlist=is_playlist_mode_on and is_actually_playlist,
                 playlist_items=playlist_items_string,
-                # --- تعديل: تمرير العددين ---
-                selected_items_count=selected_items_count,  # العدد المختار
-                total_playlist_count=total_playlist_count,  # العدد الكلي
-                # ------------------------
+                selected_items_count=selected_items_count,
+                total_playlist_count=total_playlist_count,
             )
 
     def cancel_operation_ui(self):
@@ -272,6 +303,13 @@ class UserInterface(ctk.CTk):
         def _update():
             color = "gray"
             msg_lower = message.lower()
+            # Check for multi-line message to adjust justification
+            if "\n" in message:
+                self.status_label.configure(justify="left")
+            else:
+                self.status_label.configure(
+                    justify="center"
+                )  # Center single-line messages
             if "error" in msg_lower:
                 color = "red"
             elif "warning" in msg_lower:
@@ -368,6 +406,7 @@ class UserInterface(ctk.CTk):
                 print(
                     "UI: Info fetch finished successfully (handled by on_info_success). State already updated."
                 )
+                pass
             elif operation_type == "download" and not was_error and not was_cancelled:
                 print("UI: Download finished successfully. Resetting to idle state.")
                 messagebox.showinfo(

@@ -1,7 +1,6 @@
 # -- ملف يحتوي على الكلاسات المسؤولة عن التفاعل المباشر مع yt-dlp --
 # Purpose: Contains classes that perform the actual work of interacting with yt-dlp.
 
-import contextlib
 import os
 import yt_dlp
 import sys
@@ -11,14 +10,12 @@ import re
 import traceback
 import time
 import humanize
+import contextlib  # إضافة لاستخدام contextlib.suppress
 
 
 # --- دالة find_ffmpeg ---
+# (تبقى كما هي - بدون تغيير عن النسخة السابقة)
 def find_ffmpeg():
-    """
-    يحاول العثور على ملف ffmpeg.exe التنفيذي المرفق مع التطبيق أو في PATH.
-    Attempts to find the bundled ffmpeg.exe or one in the system PATH.
-    """
     try:
         if getattr(sys, "frozen", False):
             base_path = Path(sys.executable).parent
@@ -26,9 +23,7 @@ def find_ffmpeg():
             base_path = Path(__file__).resolve().parent.parent
     except Exception:
         base_path = Path(".")
-
     bundled_path = base_path / "ffmpeg_bin" / "ffmpeg.exe"
-
     if bundled_path.is_file():
         print(f"Found bundled ffmpeg: {bundled_path}")
         return str(bundled_path)
@@ -41,12 +36,12 @@ def find_ffmpeg():
                 return ffmpeg_path_in_env
         except Exception as e:
             print(f"Error checking for ffmpeg in PATH: {e}")
-
         print("Warning: ffmpeg not found in bundle or system PATH.")
         return None
 
 
 # --- كلاس لجلب المعلومات ---
+# (يبقى كما هو - بدون تغيير عن النسخة السابقة)
 class InfoFetcher:
     def __init__(
         self,
@@ -78,10 +73,10 @@ class InfoFetcher:
             "quiet": True,
             "nocheckcertificate": True,
             "extract_flat": "in_playlist",
-            "playlistend": 500,  # Limit playlist items fetched initially
-            "ignoreerrors": True,  # Continue fetching even if some items fail
-            "forcejson": True,  # Ensure JSON output even on errors
-            "skip_download": True,  # Only fetch info
+            "playlistend": 500,
+            "ignoreerrors": True,
+            "forcejson": True,
+            "skip_download": True,
         }
         info_dict = None
         try:
@@ -94,7 +89,6 @@ class InfoFetcher:
             partial_info = None
             if "ERROR:" in error_message:
                 error_message = error_message.split("ERROR:")[-1].strip()
-            # Attempt to use partial data if available (e.g., some playlist items loaded)
             if getattr(e, "partial", False):
                 partial_info = getattr(e, "data", None)
             if partial_info:
@@ -103,34 +97,27 @@ class InfoFetcher:
             else:
                 print(f"InfoFetcher yt-dlp DownloadError: {e}")
                 self.error_callback(error_message)
-            return  # Stop processing on error
+            return
         except DownloadCancelled:
-            raise  # Propagate cancellation
+            raise
         except Exception as e:
-            self._extracted_from_run_38(
-                "InfoFetcher Unexpected Error: ",
-                e,
-                "An unexpected error occurred: ",
-            )
-            return  # Stop processing on error
-
+            print(f"InfoFetcher Unexpected Error: {e}")
+            traceback.print_exc()
+            self.error_callback(f"An unexpected error occurred: {type(e).__name__}")
+            return
         if info_dict:
-            # Clean up potential null entries in playlist due to ignoreerrors
             if "entries" in info_dict and isinstance(info_dict["entries"], list):
                 valid_entries = [entry for entry in info_dict["entries"] if entry]
-                # Handle case where playlist might appear empty (e.g., private, region-locked)
                 if not valid_entries and info_dict.get("extractor_key") == "YoutubeTab":
                     print("InfoFetcher: YouTube playlist seems empty or private.")
                     self.error_callback(
                         "Playlist is empty, private, or could not be accessed."
                     )
                     return
-                info_dict["entries"] = valid_entries  # Update with only valid entries
-
+                info_dict["entries"] = valid_entries
             self.status_callback("Information fetched successfully.")
             self.success_callback(info_dict)
         else:
-            # URL might be completely invalid or inaccessible
             print(
                 "InfoFetcher: No information dictionary returned (URL might be invalid)."
             )
@@ -144,27 +131,20 @@ class InfoFetcher:
         except DownloadCancelled as e:
             self.status_callback(str(e))
             print(e)
-        except Exception as e:  # Catch unexpected errors from _fetch_info_core
-            self._extracted_from_run_38(
-                "InfoFetcher FATAL UNEXPECTED Error in run: ",
-                e,
-                "A critical unexpected error occurred: ",
+        except Exception as e:
+            print(f"InfoFetcher FATAL UNEXPECTED Error in run: {e}")
+            traceback.print_exc()
+            self.error_callback(
+                f"A critical unexpected error occurred: {type(e).__name__}"
             )
         finally:
-            # Always notify the UI that the operation has concluded
             print("InfoFetcher: Reached finally block, calling finished_callback.")
             self.finished_callback()
-
-    # TODO Rename this here and in `_fetch_info_core` and `run`
-    def _extracted_from_run_38(self, arg0, e, arg2):
-        print(f"{arg0}{e}")
-        traceback.print_exc()
-        self.error_callback(f"{arg2}{type(e).__name__}")
 
 
 # --- كلاس لتنفيذ التحميل ---
 class Downloader:
-    # --- تعديل: استقبال وتخزين العددين، وإضافة عداد جديد ---
+    # تعديل init لاستقبال وتخزين كلا العددين
     def __init__(
         self,
         url,
@@ -173,8 +153,8 @@ class Downloader:
         quality_format_id,
         is_playlist,
         playlist_items,
-        selected_items_count,  # <-- تم استقبال العدد المختار
-        total_playlist_count,  # <-- تم استقبال العدد الكلي
+        selected_items_count,
+        total_playlist_count,  # <-- استقبال العددين
         ffmpeg_path,
         cancel_event,
         status_callback,
@@ -196,22 +176,18 @@ class Downloader:
         self.finished_callback = finished_callback
         self.last_downloaded_info = None
         self.final_known_path = None
-        self._current_processing_playlist_idx_display = (
-            1  # الفهرس في القائمة الكاملة (للعرض)
-        )
+        self._current_processing_playlist_idx_display = 1
         self._last_hook_playlist_index = 0
-        self._processed_selected_count = (
-            0  # <-- إضافة: عداد للعناصر المحددة المعالجة (يبدأ من 0)
-        )
+        self._processed_selected_count = 0  # <-- عداد العناصر المحددة المعالجة
         self._cleaned_up_path = None
 
-    # --------------------------------------------------------
-
     def _check_cancel(self, stage=""):
+        # (تبقى كما هي)
         if self.cancel_event.is_set():
             raise DownloadCancelled(f"Download cancelled {stage}.")
 
     def _clean_filename(self, filename):
+        # (تبقى كما هي)
         if not filename:
             return filename
         cleaned = re.sub(r'[\\/*?:"<>|]', "", filename)
@@ -221,11 +197,13 @@ class Downloader:
         return cleaned or "downloaded_file"
 
     def _my_hook(self, d):
-        """Hook for download progress with detailed status message."""
+        """Hook لتقدم التحميل مع رسالة حالة متعددة الأسطر ومفصلة."""
         try:
             self._check_cancel("during progress hook")
         except DownloadCancelled as e:
-            raise yt_dlp.utils.DownloadCancelled(str(e)) from e
+            raise yt_dlp.utils.DownloadCancelled(
+                str(e)
+            ) from e  # Use "raise from" for better tracebacks
 
         status = d.get("status")
         info_dict = d.get("info_dict", {})
@@ -233,7 +211,7 @@ class Downloader:
             "playlist_index"
         )  # Absolute index (1-based)
 
-        # --- Update internal absolute index counter ---
+        # Update internal absolute index counter (for display)
         if (
             self.is_playlist
             and hook_playlist_index is not None
@@ -247,22 +225,120 @@ class Downloader:
 
         # --- Process based on status ---
         if status == "finished":
-            if filepath := info_dict.get("filepath") or d.get("filename"):
-                self._extracted_from__my_hook_23(filepath, info_dict)
+            if filepath := info_dict.get("filepath") or d.get(
+                "filename"
+            ):  # Use walrus operator (Python 3.8+)
+                self.final_known_path = filepath
+                self.last_downloaded_info = info_dict
+                print(f"Hook 'finished': Path reported '{filepath}'.")
+                base_filename = os.path.basename(filepath)
+                final_ext_present = any(
+                    base_filename.lower().endswith(ext)
+                    for ext in [".mp4", ".mp3", ".mkv", ".webm", ".opus", ".ogg"]
+                )
+                title = info_dict.get("title")
+                display_name = self._clean_filename(title or base_filename)
+
+                if final_ext_present:
+                    status_msg = f"Finished: {display_name}"
+                    # --- Increment processed selected count ---
+                    # Only increment when the final file for a selected item is processed
+                    # This assumes yt-dlp processes playlist_items sequentially relative to their original index
+                    self._processed_selected_count += 1
+                    print(
+                        f"Processed selected items count incremented to: {self._processed_selected_count}"
+                    )
+                    # -----------------------------------------
+                else:
+                    status_msg = f"Processing: {display_name}..."  # Intermediate file
+
+                self.status_callback(
+                    status_msg
+                )  # Update status label (single line for finished/processing)
+                self.progress_callback(1.0)  # Set progress to 100% for this stage
             else:
                 print("Hook 'finished' but no filepath found in hook data.")
                 self.status_callback("Processing finished (unknown file path).")
-            self.progress_callback(1.0)
+                self.progress_callback(1.0)
+
         elif status == "downloading":
-            total_bytes = d.get("total_bytes") or d.get("total_bytes_estimate")
             downloaded_bytes = d.get("downloaded_bytes")
-
             if downloaded_bytes is not None:
-                self._extracted_from__my_hook_57(total_bytes, downloaded_bytes, d)
-                # ----------------------------------------------------
+                total_bytes = d.get("total_bytes") or d.get("total_bytes_estimate")
+                # Calculate progress
+                progress = 0.0
+                percentage_str = "0.0%"
+                if total_bytes and total_bytes > 0:
+                    progress = max(0.0, min(1.0, downloaded_bytes / total_bytes))
+                    percentage_str = f"{progress:.1%}"
+                self.progress_callback(progress)
 
+                # --- بناء الرسالة متعددة الأسطر ---
+                status_lines = []  # ابدأ بقائمة فارغة للأسطر
+
+                # السطر الأول والثاني (فقط للقوائم)
+                if self.is_playlist:
+                    current_absolute_index = (
+                        self._current_processing_playlist_idx_display
+                    )
+                    total_absolute_str = (
+                        f"out of {self.total_playlist_count} total"
+                        if self.total_playlist_count > 0
+                        else ""
+                    )
+                    status_lines.append(
+                        f"Video {current_absolute_index} {total_absolute_str}"
+                    )
+
+                    index_in_selection = (
+                        self._processed_selected_count + 1
+                    )  # ترتيب العنصر الحالي ضمن التحديد
+                    index_in_selection = min(
+                        index_in_selection, self.selected_items_count
+                    )  # تجنب تجاوز العدد الكلي المحدد
+                    remaining_in_selection = max(
+                        0, self.selected_items_count - self._processed_selected_count
+                    )  # المتبقي (لا يقل عن صفر)
+                    status_lines.append(
+                        f"Selected: {index_in_selection} of {self.selected_items_count} ({remaining_in_selection} remaining)"
+                    )
+                else:
+                    status_lines.append("Downloading Video")  # سطر واحد للفيديو المفرد
+
+                # السطر الثالث: التقدم والحجم
+                downloaded_size_str = humanize.naturalsize(
+                    downloaded_bytes, binary=True
+                )
+                total_size_str = (
+                    humanize.naturalsize(total_bytes, binary=True)
+                    if total_bytes
+                    else "Unknown size"
+                )
+                status_lines.append(
+                    f"Progress: {percentage_str} ({downloaded_size_str} / {total_size_str})"
+                )
+
+                # السطر الرابع: السرعة والوقت المتبقي
+                if speed := d.get("speed"):
+                    speed_str = (
+                        f"{humanize.naturalsize(speed, binary=True, gnu=True)}/s"
+                    )
+                else:
+                    speed_str = "Calculating..."
+                eta = d.get("eta")
+                eta_str = "Calculating..."
+                # استخدام contextlib.suppress لتبسيط معالجة الخطأ المحتمل من humanize.naturaldelta
+                with contextlib.suppress(TypeError, ValueError):
+                    if eta is not None and isinstance(eta, (int, float)) and eta >= 0:
+                        eta_str = f"{int(round(eta))} seconds remaining"  # تنسيق مباشر للثواني
+                        # أو استخدم: eta_str = humanize.naturaldelta(eta) + " remaining"
+                status_lines.append(f"Speed: {speed_str} | ETA: {eta_str}")
+
+                # تجميع الأسطر وتحديث الواجهة
+                status_msg = "\n".join(status_lines)
+                self.status_callback(status_msg)
+                # ------------------------------------
             else:
-                # Fallback status (e.g., connecting)
                 self.status_callback(f"Status: {d.get('status', 'Connecting')}...")
 
         elif status == "error":
@@ -271,101 +347,8 @@ class Downloader:
                 f"yt-dlp hook reported error: {d.get('error', 'Unknown yt-dlp error')}"
             )
 
-    # TODO Rename this here and in `_my_hook`
-    def _extracted_from__my_hook_57(self, total_bytes, downloaded_bytes, d):
-        # Calculate progress for the current file
-        progress = 0.0
-        percentage_str = "0.0%"  # Default percentage string
-        if total_bytes and total_bytes > 0:
-            progress = max(0.0, min(1.0, downloaded_bytes / total_bytes))
-            percentage_str = f"{progress:.1%}"
-        self.progress_callback(progress)
-
-        # --- تعديل: بناء الرسالة التفصيلية المطلوبة ---
-        # Format sizes
-        downloaded_size_str = humanize.naturalsize(downloaded_bytes, binary=True)
-        total_size_str = (
-            humanize.naturalsize(total_bytes, binary=True)
-            if total_bytes
-            else "Unknown size"
-        )
-
-        if speed := d.get("speed"):
-            speed_str = f"{humanize.naturalsize(speed, binary=True, gnu=True)}/s"
-        else:
-            speed_str = "Calculating..."
-        # Format ETA
-        eta = d.get("eta")
-        eta_str = "Calculating..."
-        with contextlib.suppress(TypeError, ValueError):
-            if eta is not None and isinstance(eta, (int, float)) and eta >= 0:
-                # Format seconds remaining
-                eta_str = f"{int(round(eta))} seconds remaining"  # More direct format
-                # Alternatively, use naturaldelta:
-                # eta_str = humanize.naturaldelta(eta) + " remaining"
-
-                # --- تعديل: بناء الرسالة كقائمة من الأسطر ---
-        status_lines = []
-        if self.is_playlist:
-            self._extracted_from__extracted_from__my_hook_57_32(status_lines)
-        else:
-            status_lines.append("Downloading Video")  # سطر واحد للفيديو المفرد
-
-        status_lines.extend(
-            (
-                f"Progress: {percentage_str} ({downloaded_size_str} / {total_size_str})",
-                f"Speed: {speed_str} | ETA: {eta_str}",
-            )
-        )
-        # تجميع الأسطر باستخدام "\n"
-        status_msg = "\n".join(status_lines)
-        self.status_callback(status_msg)
-
-    # TODO Rename this here and in `_extracted_from__my_hook_57`
-    def _extracted_from__extracted_from__my_hook_57_32(self, status_lines):
-        current_absolute_index = self._current_processing_playlist_idx_display
-        total_absolute_str = (
-            f"out of {self.total_playlist_count} total"
-            if self.total_playlist_count > 0
-            else ""
-        )
-        status_lines.append(
-            f"Video {current_absolute_index} {total_absolute_str}"
-        )  # السطر الأول: الفيديو الحالي/الإجمالي
-
-        index_in_selection = self._processed_selected_count + 1
-        index_in_selection = min(index_in_selection, self.selected_items_count)
-        remaining_in_selection = max(
-            0, self.selected_items_count - self._processed_selected_count
-        )
-        status_lines.append(
-            f"Selected: {index_in_selection} of {self.selected_items_count} ({remaining_in_selection} remaining)"
-        )  # السطر الثاني: تقدم التحديد
-        # -------------------------------------------
-
-    def _extracted_from__my_hook_23(self, filepath, info_dict):
-        self.final_known_path = filepath
-        self.last_downloaded_info = info_dict
-        print(f"Hook 'finished': Path reported '{filepath}'.")
-        base_filename = os.path.basename(filepath)
-        final_ext_present = any(
-            base_filename.lower().endswith(ext)
-            for ext in [".mp4", ".mp3", ".mkv", ".webm", ".opus", ".ogg"]
-        )
-        title = info_dict.get("title")
-        display_name = self._clean_filename(title or base_filename)
-        if final_ext_present:
-            status_msg = f"Finished: {display_name}"
-            self._processed_selected_count += 1
-            print(
-                f"Processed selected items count incremented to: {self._processed_selected_count}"
-            )
-        else:
-            status_msg = f"Processing: {display_name}..."
-        self.status_callback(status_msg)
-
     # --- باقي الدوال (_build_format_string, _download_core, _cleanup_final_file, run, _log_unexpected_error) ---
-    # --- تبقى كما هي ---
+    # --- تبقى كما هي في النسخة السابقة ---
     def _build_format_string(self):
         format_choice_lower = self.format_choice.lower()
         output_ext = "mp4"
@@ -379,17 +362,17 @@ class Downloader:
                     "Warning: MP3 format chosen despite specific quality ID selection. Will attempt audio extraction."
                 )
                 output_ext = "mp3"
-                if self.ffmpeg_path:
-                    postprocessors.append(
-                        {
-                            "key": "FFmpegExtractAudio",
-                            "preferredcodec": "mp3",
-                            "preferredquality": "192",
-                        }
-                    )
-                else:
-                    print("Error: MP3 conversion requires FFmpeg, which was not found.")
-                    output_ext = None
+            if self.ffmpeg_path:
+                postprocessors.append(
+                    {
+                        "key": "FFmpegExtractAudio",
+                        "preferredcodec": "mp3",
+                        "preferredquality": "192",
+                    }
+                )
+            else:
+                print("Error: MP3 conversion requires FFmpeg, which was not found.")
+                output_ext = None
         elif "audio (mp3)" in format_choice_lower:
             final_format_string = "bestaudio/best"
             output_ext = "mp3"
@@ -429,12 +412,11 @@ class Downloader:
         return final_format_string, output_ext, postprocessors
 
     def _download_core(self):
-        # Reset state variables for this download attempt
         self.last_downloaded_info = None
         self.final_known_path = None
-        self._current_processing_playlist_idx_display = 1  # Reset display counter
+        self._current_processing_playlist_idx_display = 1
         self._last_hook_playlist_index = 0
-        self._processed_selected_count = 0  # Reset selected counter
+        self._processed_selected_count = 0
         self._cleaned_up_path = None
         self._check_cancel("before starting download")
         if self.is_playlist:
@@ -453,16 +435,16 @@ class Downloader:
             "ignoreerrors": self.is_playlist,
             "merge_output_format": "mp4",
             "postprocessors": core_postprocessors,
-            "restrictfilenames": False,  #'postprocessor_args': {'ffmpeg': ['-vcodec', 'copy', '-acodec', 'copy']},
-        }
+            "restrictfilenames": False,
+        }  #'postprocessor_args': {'ffmpeg': ['-vcodec', 'copy', '-acodec', 'copy']}, }
         if self.ffmpeg_path:
             ydl_opts["ffmpeg_location"] = self.ffmpeg_path
         elif core_postprocessors:
             self.status_callback("Warning: FFmpeg needed for conversion but not found.")
         if self.is_playlist:
             ydl_opts["noplaylist"] = False
-            if self.playlist_items:
-                ydl_opts["playlist_items"] = self.playlist_items
+        if self.playlist_items:
+            ydl_opts["playlist_items"] = self.playlist_items
         else:
             ydl_opts["noplaylist"] = True
         if final_format_string:
@@ -541,7 +523,9 @@ class Downloader:
                     )
                     return
             else:
-                print("Cleanup Error: File not found and no info to guess alternative.")
+                print(
+                    f"Cleanup Error: File not found and no info to guess alternative."
+                )
                 self.status_callback(
                     f"Error: Processing completed but final file '{expected_final_path_obj.name}' is missing."
                 )
