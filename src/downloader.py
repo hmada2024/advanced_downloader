@@ -119,9 +119,7 @@ class Downloader:
         else:
             status_lines.append("Downloading Video")
 
-        downloaded_size_str = humanize.naturalsize(
-            downloaded_bytes, binary=True
-        )
+        downloaded_size_str = humanize.naturalsize(downloaded_bytes, binary=True)
         total_size_str = (
             humanize.naturalsize(total_bytes, binary=True)
             if total_bytes
@@ -149,21 +147,15 @@ class Downloader:
 
     # TODO Rename this here and in `_my_hook`
     def _extracted_from__my_hook_63(self, status_lines):
-        current_absolute_index = (
-            self._current_processing_playlist_idx_display
-        )
+        current_absolute_index = self._current_processing_playlist_idx_display
         total_absolute_str = (
             f"out of {self.total_playlist_count} total"
             if self.total_playlist_count > 0
             else ""
         )
-        status_lines.append(
-            f"Video {current_absolute_index} {total_absolute_str}"
-        )
+        status_lines.append(f"Video {current_absolute_index} {total_absolute_str}")
         index_in_selection = self._processed_selected_count + 1
-        index_in_selection = min(
-            index_in_selection, self.selected_items_count
-        )
+        index_in_selection = min(index_in_selection, self.selected_items_count)
         remaining_in_selection = max(
             0, self.selected_items_count - self._processed_selected_count
         )
