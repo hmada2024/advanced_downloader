@@ -5,8 +5,7 @@
 import os
 import yt_dlp
 import sys
-from pathlib import Path
-# import re # <- لم يعد مطلوبًا هنا Not needed here anymore
+from pathlib import Path # <-- التأكد من وجود هذا الاستيراد Ensure this import exists
 import traceback
 import time
 import humanize
@@ -59,12 +58,11 @@ class Downloader:
         self.finished_callback = finished_callback
 
         # متغيرات الحالة الداخلية Internal state variables
-        self.last_downloaded_info = None # معلومات آخر ملف تم تحميله Info of the last downloaded file
-        self.final_known_path = None # المسار الذي أبلغ عنه الهوك كمسار نهائي Path reported by hook as final
+        # لم نعد بحاجة إلى final_known_path أو last_downloaded_info أو _cleaned_up_path لغرض التنظيف
+        # We no longer need final_known_path, last_downloaded_info or _cleaned_up_path for cleanup purposes
         self._current_processing_playlist_idx_display = 1 # الفهرس المطلق للعنصر الحالي (للعرض) Absolute index of current item (for display)
         self._last_hook_playlist_index = 0 # آخر فهرس مطلق تم رؤيته في الهوك Last absolute index seen in hook
         self._processed_selected_count = 0 # عدد العناصر المحددة التي تم الانتهاء من معالجتها Count of selected items finished processing
-        self._cleaned_up_path = None # المسار بعد التنظيف النهائي (لمنع التنظيف المزدوج) Path after final cleanup (prevents double cleanup)
 
     def _check_cancel(self, stage=""):
         """
@@ -80,8 +78,8 @@ class Downloader:
     def _my_hook(self, d):
         # sourcery skip: extract-method, hoist-similar-statement-from-if, hoist-statement-from-if
         """
-        خطاف تقدم yt-dlp لمعالجة تحديثات الحالة والتقدم.
-        yt-dlp progress hook to handle status and progress updates.
+        خطاف تقدم yt-dlp لمعالجة تحديثات الحالة والتقدم (قبل المعالجات اللاحقة).
+        yt-dlp progress hook to handle status and progress updates (before postprocessors).
         """
         try:
             # التحقق من الإلغاء داخل الهوك Check for cancellation within the hook
@@ -109,40 +107,43 @@ class Downloader:
 
         # --- المعالجة بناءً على حالة الهوك Process based on hook status ---
         if status == "finished":
-            if filepath := info_dict.get("filepath") or d.get("filename"):
-                # تخزين آخر مسار تم الإبلاغ عنه والبيانات الوصفية Store the last reported path and metadata
-                self.final_known_path = filepath
-                self.last_downloaded_info = info_dict
-                print(f"Hook 'finished': Path reported '{filepath}'.")
+            # هذا الهوك الآن يُستخدم بشكل أساسي لتحديث الحالة إلى "Processing..." أو "Finished: ..." قبل الدمج
+            # This hook is now primarily used to update status to "Processing..." or "Finished: ..." before merging
+            filepath = info_dict.get("filepath") or d.get("filename")
+            if filepath:
+                # --- لا نخزن final_known_path أو last_downloaded_info هنا لغرض التنظيف ---
+                # --- We don't store final_known_path or last_downloaded_info here for cleanup ---
+                print(f"Hook 'finished' (pre-postprocessing): Path reported '{filepath}'.")
 
                 base_filename = os.path.basename(filepath)
-                # التحقق مما إذا كان هذا هو الملف النهائي (له امتداد شائع) Check if this is the final file (has a common extension)
+                # التحقق مما إذا كان هذا هو الملف النهائي المتوقع (له امتداد شائع) Check if this is the expected final file (has a common extension)
+                # ملاحظة: هذا قد لا يكون دقيقًا إذا كان الامتداد المؤقت هو نفسه النهائي (نادر) Note: This might be inaccurate if temp ext matches final (rare)
                 final_ext_present = any(
                     base_filename.lower().endswith(ext)
                     for ext in [".mp4", ".mp3", ".mkv", ".webm", ".opus", ".ogg"]
                 )
                 title = info_dict.get("title")
-                # **تعديل: استخدام دالة التنظيف المستوردة** **Modification: Use imported clean function**
                 display_name = clean_filename(title or base_filename)
 
                 if final_ext_present:
-                    status_msg = f"Finished: {display_name}"
+                    status_msg = f"Finished: {display_name}" # <- هذه الرسالة قد تكون مؤقتة حتى يتم الدمج This message might be temporary until merging
                     # زيادة عداد العناصر المحددة المعالجة فقط عند الانتهاء من الملف النهائي
                     # Increment processed selected count only when the final file is done
+                    # !! هذا الافتراض قد لا يكون دقيقًا 100% إذا كان الدمج يأخذ وقتًا طويلاً !!
+                    # !! This assumption might not be 100% accurate if merging takes long !!
+                    # سنبقيه الآن، ولكن يجب أن نكون على علم به We'll keep it for now, but be aware
                     self._processed_selected_count += 1
                     print(
-                        f"Processed selected items count incremented to: {self._processed_selected_count}"
+                        f"Processed selected items count incremented in pre-hook to: {self._processed_selected_count}"
                     )
                 else:
                     # إذا لم يكن ملفًا نهائيًا، فهي مرحلة معالجة وسيطة If not a final file, it's an intermediate processing stage
                     status_msg = f"Processing: {display_name}..."
 
-                # تحديث رسالة الحالة (سطر واحد للانتهاء/المعالجة) Update status message (single line for finished/processing)
                 self.status_callback(status_msg)
-                self.progress_callback(1.0) # تعيين التقدم إلى 100% لهذه المرحلة Set progress to 100% for this stage
+                self.progress_callback(1.0) # التقدم 100% لهذه المرحلة Progress 100% for this stage
             else:
-                # حالة نادرة: انتهى ولكن لا يوجد مسار Rare case: finished but no filepath
-                print("Hook 'finished' but no filepath found in hook data.")
+                print("Hook 'finished' (pre-postprocessing) but no filepath found.")
                 self.status_callback("Processing finished (unknown file path).")
                 self.progress_callback(1.0)
 
@@ -174,6 +175,8 @@ class Downloader:
                     status_lines.append(f"Video {current_absolute_index} {total_absolute_str}")
 
                     # حساب التقدم ضمن العناصر المحددة Calculate progress within selected items
+                    # استخدام نفس العداد _processed_selected_count الذي يتم زيادته في status='finished'
+                    # Use the same _processed_selected_count incremented in status='finished'
                     index_in_selection = self._processed_selected_count + 1
                     index_in_selection = min(index_in_selection, self.selected_items_count) # لا يتجاوز العدد المحدد Don't exceed selected count
                     remaining_in_selection = max(0, self.selected_items_count - self._processed_selected_count) # لا يقل عن صفر Cannot be less than zero
@@ -195,7 +198,6 @@ class Downloader:
                 with contextlib.suppress(TypeError, ValueError): # تجاهل أخطاء التحويل المحتملة Ignore potential conversion errors
                     if eta is not None and isinstance(eta, (int, float)) and eta >= 0:
                         eta_str = f"{int(round(eta))} seconds remaining" # عرض الثواني مباشرة Show seconds directly
-                        # eta_str = humanize.naturaldelta(eta) + " remaining" # بديل Alternative
                 status_lines.append(f"Speed: {speed_str} | ETA: {eta_str}")
 
                 # تجميع الأسطر وتحديث الواجهة Combine lines and update UI
@@ -203,13 +205,84 @@ class Downloader:
                 self.status_callback(status_msg)
                 # ------------------------------------
             else:
-                # إذا لم يكن هناك بايتات محملة (مرحلة الاتصال مثلاً) If no downloaded bytes (e.g., connecting stage)
                 self.status_callback(f"Status: {d.get('status', 'Connecting')}...")
 
         elif status == "error":
-            # عند حدوث خطأ يبلغه الهوك When the hook reports an error
             self.status_callback("Error during download process reported by yt-dlp.")
             print(f"yt-dlp hook reported error: {d.get('error', 'Unknown yt-dlp error')}")
+
+
+    # +++ دالة خطاف ما بعد المعالجة الجديدة +++ New postprocessor hook function +++
+    def _postprocessor_hook(self, d):
+        """
+        Hook يُستدعى بعد انتهاء المعالجات اللاحقة (مثل الدمج أو تحويل الصوت).
+        Hook called after postprocessors (like Merger or FFmpegExtractAudio) finish.
+        مسؤول عن التحقق من الملف النهائي وإعادة تسميته إذا لزم الأمر.
+        Responsible for checking the final file and renaming if needed.
+        """
+        print(f"Postprocessor Hook called with status: {d.get('status')}, postprocessor: {d.get('postprocessor')}") # للدييباج For debugging
+
+        # العمل فقط عند انتهاء المعالج اللاحق بنجاح Act only when the postprocessor finishes successfully
+        if d['status'] == 'finished':
+            info_dict = d.get('info_dict', {})
+            # المسار النهائي الفعلي يجب أن يكون موجودًا في info_dict الآن The actual final path should be in info_dict now
+            final_filepath = info_dict.get('filepath')
+
+            # التحقق من وجود المسار وأنه ملف فعلي Check if path exists and is a file
+            if not final_filepath or not Path(final_filepath).is_file():
+                print(f"Postprocessor Error: Final file path '{final_filepath}' not found or missing after postprocessing.")
+                # اختياري: إبلاغ المستخدم عن مشكلة في المعالجة اللاحقة Optional: Inform user about postprocessing issue
+                # title_for_error = info_dict.get('title', 'Unknown video')
+                # self.status_callback(f"Warning: Postprocessing finished for '{title_for_error}' but final file is missing.")
+                return # لا يمكن فعل شيء آخر Cannot do anything else
+
+            print(f"Postprocessor Hook: Final file confirmed at '{final_filepath}'. Proceeding with rename check.")
+            expected_final_path_obj = Path(final_filepath)
+            current_basename = expected_final_path_obj.name
+            target_basename = current_basename # الاسم المستهدف افتراضيًا
+
+            # إعادة بناء الاسم المستهدف المثالي (نفس المنطق من cleanup_final_file القديم)
+            # Reconstruct the ideal target name (same logic as old cleanup_final_file)
+            base_title = info_dict.get("title", "")
+            # الحصول على الامتداد الصحيح من المسار الفعلي Get correct extension from actual path
+            base_ext = expected_final_path_obj.suffix.lstrip(".")
+
+            # التحقق مما إذا كان جزءًا من قائمة تشغيل (باستخدام info_dict الحالي) Check if part of playlist (using current info_dict)
+            playlist_index = info_dict.get("playlist_index")
+            if playlist_index is not None:
+                # *** بناء الاسم الصحيح مع المسافة *** Correct name construction WITH space
+                target_basename = f"{playlist_index}. {base_title}.{base_ext}"
+            else: # فيديو مفرد Single video
+                target_basename = f"{base_title}.{base_ext}"
+
+            # تنظيف الاسم المستهدف Clean the target name
+            target_basename = clean_filename(target_basename)
+
+            # إعادة التسمية فقط إذا كان الاسم مختلفًا Rename only if the name differs
+            if target_basename != current_basename:
+                new_final_filepath_obj = expected_final_path_obj.with_name(target_basename)
+                print(f"Postprocessor: Attempting rename: '{current_basename}' -> '{target_basename}'")
+                try:
+                    # إعادة تسمية الملف Rename the file
+                    expected_final_path_obj.rename(new_final_filepath_obj)
+                    print(f"Postprocessor: Rename successful: '{new_final_filepath_obj}'")
+                    # اختياري: تحديث رسالة الحالة لتعكس الاسم الجديد Optional: Update status msg to reflect new name
+                    # self.status_callback(f"Finished & Renamed: {target_basename}")
+                except OSError as e:
+                    # خطأ أثناء إعادة التسمية Error during rename
+                    print(f"Postprocessor Error during rename for '{current_basename}': {e}")
+                    # اختياري: إبلاغ المستخدم بفشل إعادة التسمية Optional: Inform user about rename failure
+                    # self.status_callback(f"Finished (Rename Failed): {current_basename}")
+            else:
+                # الاسم كان صحيحًا بالفعل Name was already correct
+                print(f"Postprocessor: Filename '{current_basename}' already correct. No rename needed.")
+
+        elif d['status'] == 'started':
+            # اختياري: طباعة رسالة عند بدء المعالج اللاحق Optional: Print message when postprocessor starts
+            print(f"Postprocessor Hook: '{d.get('postprocessor')}' started.")
+        # تجاهل الحالات الأخرى مثل 'progress' أو 'error' من المعالج اللاحق
+        # Ignore other statuses like 'progress' or 'error' from the postprocessor
+
 
     def _build_format_string(self):
         """
@@ -218,16 +291,14 @@ class Downloader:
         Returns:
             tuple: (format_string, output_extension_hint, postprocessors_list)
         """
+        # --- هذا المنطق يبقى كما هو --- This logic remains the same ---
         format_choice_lower = self.format_choice.lower()
-        output_ext = "mp4"  # الامتداد المتوقع افتراضيًا Default expected extension
-        postprocessors = [] # قائمة المعالجات اللاحقة List of postprocessors
-        final_format_string = None # السلسلة النهائية لـ yt-dlp Final string for yt-dlp
-
-        # الحالة 1: تم اختيار جودة محددة (وليس قائمة تشغيل) Case 1: Specific quality selected (and not playlist)
+        output_ext = "mp4"
+        postprocessors = []
+        final_format_string = None
         if not self.is_playlist and self.quality_format_id:
             final_format_string = self.quality_format_id
             print(f"Using specific quality format ID: {self.quality_format_id}")
-            # تحقق مما إذا كان المستخدم يريد MP3 بالرغم من اختيار جودة فيديو Check if user wants MP3 despite video quality selection
             if "audio (mp3)" in format_choice_lower:
                 print("Warning: MP3 format chosen despite specific quality ID selection. Will attempt audio extraction.")
                 output_ext = "mp3"
@@ -235,16 +306,13 @@ class Downloader:
                     postprocessors.append({
                         "key": "FFmpegExtractAudio",
                         "preferredcodec": "mp3",
-                        "preferredquality": "192", # جودة MP3 Quality
+                        "preferredquality": "192",
                     })
                 else:
-                    # لا يمكن التحويل بدون FFmpeg Cannot convert without FFmpeg
                     print("Error: MP3 conversion requires FFmpeg, which was not found.")
-                    output_ext = None # لا يمكن ضمان الامتداد Cannot guarantee extension
-
-        # الحالة 2: تم اختيار MP3 بشكل عام Case 2: MP3 chosen generally
+                    output_ext = None
         elif "audio (mp3)" in format_choice_lower:
-            final_format_string = "bestaudio/best" # اطلب أفضل صوت Request best audio
+            final_format_string = "bestaudio/best"
             output_ext = "mp3"
             if self.ffmpeg_path:
                 postprocessors.append({
@@ -255,17 +323,11 @@ class Downloader:
                 print("Selecting best audio for MP3 conversion.")
             else:
                 print("Warning: MP3 requested but FFmpeg not found. Downloading best audio format.")
-                output_ext = None # سيبقى الامتداد الأصلي Original extension will remain
-
-        # الحالة 3: قائمة تشغيل (استخدم حد 720p افتراضيًا) Case 3: Playlist (use 720p limit by default)
+                output_ext = None
         elif self.is_playlist:
-            # سلسلة معقدة تطلب أفضل فيديو MP4 حتى 720p مع أفضل صوت، مع بدائل
-            # Complex string requesting best MP4 video up to 720p with best audio, with fallbacks
             final_format_string = "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720][ext=mp4]/best[height<=720]"
             output_ext = "mp4"
             print("Using default playlist format (max 720p MP4)")
-
-        # الحالة 4: فيديو مفرد مع اختيار جودة عامة Case 4: Single video with general quality choice
         else:
             height_limit = None
             if "<= 720p" in format_choice_lower: height_limit = 720
@@ -273,10 +335,9 @@ class Downloader:
             elif "<= 360p" in format_choice_lower: height_limit = 360
 
             if height_limit:
-                # بناء سلسلة التنسيق مع حد الارتفاع Build format string with height limit
                 final_format_string = f"bestvideo[height<={height_limit}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={height_limit}]+bestaudio/best[height<={height_limit}][ext=mp4]/best[height<={height_limit}]"
                 print(f"Using general format: max {height_limit}p MP4")
-            else: # الحالة الافتراضية (أفضل جودة MP4 <= 1080p+) Default case (Best Quality MP4 <= 1080p+)
+            else:
                 final_format_string = "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best[ext=mp4]/best"
                 print("Using general format: best available MP4 (1080p+)")
             output_ext = "mp4"
@@ -289,23 +350,18 @@ class Downloader:
         Executes the core download process and sets up yt-dlp options.
         """
         # إعادة تعيين متغيرات الحالة لكل عملية تحميل Reset state variables for each download operation
-        self.last_downloaded_info = None
-        self.final_known_path = None
         self._current_processing_playlist_idx_display = 1
         self._last_hook_playlist_index = 0
         self._processed_selected_count = 0
-        self._cleaned_up_path = None
+        # --- لا حاجة لـ last_downloaded_info, final_known_path, _cleaned_up_path ---
+        # --- No need for last_downloaded_info, final_known_path, _cleaned_up_path ---
 
         self._check_cancel("before starting download")
 
         # بناء نمط اسم الملف الناتج Build output filename template
         if self.is_playlist:
-            # إضافة رقم القائمة للعناصر Playlist index for items
-            outtmpl_pattern = os.path.join(
-                self.save_path, "%(playlist_index)s. %(title)s.%(ext)s"
-            )
+            outtmpl_pattern = os.path.join(self.save_path, "%(playlist_index)s. %(title)s.%(ext)s")
         else:
-            # عنوان الفيديو فقط للفيديو المفرد Just title for single video
             outtmpl_pattern = os.path.join(self.save_path, "%(title)s.%(ext)s")
 
         # الحصول على خيارات التنسيق والمعالجات Build format options and postprocessors
@@ -313,13 +369,15 @@ class Downloader:
 
         # بناء قاموس خيارات yt-dlp Build yt-dlp options dictionary
         ydl_opts = {
-            "progress_hooks": [self._my_hook],    # خطاف التقدم Progress hook
+            "progress_hooks": [self._my_hook],    # خطاف التقدم (قبل المعالجة اللاحقة) Progress hook (before postprocessing)
             "outtmpl": outtmpl_pattern,          # نمط اسم الملف Output template
             "nocheckcertificate": True,         # تجاهل أخطاء الشهادة Ignore certificate errors
             "ignoreerrors": self.is_playlist,    # تجاهل الأخطاء في القوائم؟ Ignore errors in playlists?
             "merge_output_format": "mp4",       # محاولة الدمج إلى MP4 إن أمكن Try merging to MP4 if possible
-            "postprocessors": core_postprocessors, # معالجات الصوت (MP3) Audio postprocessors (MP3)
-            "restrictfilenames": False,         # عدم تقييد أسماء الملفات (للحفاظ على المسافات) Don't restrict filenames (keep spaces)
+            "postprocessors": core_postprocessors, # معالجات مثل FFmpegExtractAudio Postprocessors like FFmpegExtractAudio
+            "restrictfilenames": False,         # عدم تقييد أسماء الملفات Don't restrict filenames
+            # +++ إضافة خطاف ما بعد المعالجة +++ Add postprocessor hook +++
+            'postprocessor_hooks': [self._postprocessor_hook],
         }
 
         # إضافة مسار FFmpeg إذا وجد Add FFmpeg path if found
@@ -334,29 +392,27 @@ class Downloader:
         if self.playlist_items:
             ydl_opts["playlist_items"] = self.playlist_items # تحديد العناصر المطلوبة Specify items
         else:
-            # إذا لم تكن قائمة أو لم يتم تحديد عناصر، قم بتعطيل معالجة القائمة
-            # If not a playlist or no items selected, disable playlist processing
-            ydl_opts["noplaylist"] = True
+            ydl_opts["noplaylist"] = True # تعطيل معالجة القائمة Disable playlist processing
 
         # إضافة خيار التنسيق إذا تم تحديده Add format option if determined
         if final_format_string:
             ydl_opts["format"] = final_format_string
-        elif "format" in ydl_opts: # التأكد من إزالته إذا لم يكن مطلوبًا Ensure removed if not needed
+        elif "format" in ydl_opts:
             del ydl_opts["format"]
 
-        print("Final yt-dlp options:", ydl_opts) # طباعة الخيارات النهائية للدييباج Print final options for debugging
+        print("Final yt-dlp options:", ydl_opts)
         self.status_callback("Starting download...")
-        self.progress_callback(0) # بدء التقدم من الصفر Start progress at zero
+        self.progress_callback(0)
 
         self._check_cancel("right before calling ydl.download()")
 
-        download_successful = False
+        # --- تم تبسيط كتلة try/except --- Simplified try/except block ---
         try:
             # تشغيل التحميل باستخدام yt-dlp Run download using yt-dlp
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([self.url])
-            download_successful = True # تم الانتهاء بدون خطأ Finished without error
-            # تحقق من الإلغاء فورًا بعد انتهاء التحميل Check cancellation immediately after download finishes
+            # تم الانتهاء بدون خطأ من yt-dlp نفسه Finished without error from yt-dlp itself
+            # تحقق من الإلغاء فورًا Check for cancellation immediately
             self._check_cancel("immediately after ydl.download() finished")
 
         except yt_dlp.utils.DownloadCancelled as e:
@@ -367,131 +423,19 @@ class Downloader:
             error_message = str(dl_err).split("ERROR:")[-1].strip()
             print(f"Downloader yt-dlp DownloadError: {dl_err}")
             self.status_callback(f"Download Error: {error_message}")
-            # download_successful يبقى False download_successful remains False
+            # سيتم التقاط هذا الخطأ في run() وسيتم استدعاء finished_callback
+            # This error will be caught in run() and finished_callback will be called
         except Exception as e:
             # أي خطأ آخر غير متوقع Any other unexpected error
             self._log_unexpected_error(e, "during yt-dlp download execution")
-            # download_successful يبقى False download_successful remains False
+            # سيتم التقاط هذا الخطأ في run() وسيتم استدعاء finished_callback
+            # This error will be caught in run() and finished_callback will be called
 
-        # تحقق من الإلغاء مرة أخرى بعد كتلة try/except Check cancellation again after try/except block
-        self._check_cancel("after download block completion")
+        # --- لا يوجد تنظيف نهائي هنا --- No final cleanup here ---
+        # سيتم التعامل مع إعادة التسمية في _postprocessor_hook
+        # Renaming will be handled in _postprocessor_hook
 
-        # --- التنظيف النهائي فقط إذا نجح التحميل Final cleanup only if download succeeded ---
-        if not download_successful:
-            print("Download process reported errors or was unsuccessful. Skipping final cleanup.")
-            return # الخروج من الدالة Exit the function
-
-        # محاولة تنظيف اسم الملف النهائي Try cleaning up the final filename
-        try:
-            time.sleep(0.2) # انتظار قصير لضمان اكتمال عمليات الملف Short wait to ensure file operations complete
-            self._cleanup_final_file()
-        except Exception as e:
-            self._log_unexpected_error(e, "during final file cleanup")
-            self.status_callback("Warning: Download complete, but filename cleanup failed.")
-
-    def _cleanup_final_file(self):
-        """
-        ينظف ويعيد تسمية الملف النهائي الذي تم الإبلاغ عنه بواسطة الهوك إذا لزم الأمر.
-        Cleans and renames the final file reported by the hook if necessary.
-        """
-        # منع التنظيف المتكرر Prevent repeated cleanup
-        if self._cleaned_up_path:
-            print(f"Cleanup skipped: Already cleaned path '{self._cleaned_up_path}'")
-            return
-
-        print("Attempting final file cleanup...")
-
-        # التحقق من وجود مسار نهائي معروف Check if a final path is known
-        if not self.final_known_path:
-            print("Cleanup skipped: No final file path was reported by hooks.")
-            self.status_callback("Warning: Download finished, but final file path is unknown.")
-            return
-
-        expected_final_path_obj = Path(self.final_known_path)
-        print(f"Cleanup: Checking final path '{expected_final_path_obj}'")
-
-        # انتظار قصير آخر للتأكد من أن الملف موجود ومتاح Short extra wait to ensure file exists and is available
-        time.sleep(0.4)
-
-        # التحقق من وجود الملف Check if the file exists
-        if not expected_final_path_obj.exists():
-            print(f"Cleanup Error: Expected final file '{expected_final_path_obj}' not found after delay.")
-            # محاولة تخمين المسار الصحيح بناءً على آخر معلومات Try guessing the correct path based on last info
-            if self.last_downloaded_info:
-                pl_idx = self.last_downloaded_info.get("playlist_index")
-                pl_idx_str = f"{pl_idx}." if pl_idx is not None else ""
-                # الحصول على الامتداد المتوقع من _build_format_string Get expected extension from _build_format_string
-                expected_ext = self._build_format_string()[1] or "mp4" # fallback to mp4
-                title = self.last_downloaded_info.get("title", "untitled")
-                # **تعديل: استخدام دالة التنظيف المستوردة** **Modification: Use imported clean function**
-                expected_name = f"{pl_idx_str}{title}.{expected_ext}"
-                alt_path = expected_final_path_obj.parent / clean_filename(expected_name)
-
-                print(f"Cleanup: Checking alternative path '{alt_path}'")
-                if alt_path.exists():
-                    print(f"Found file at alternative path: {alt_path}")
-                    expected_final_path_obj = alt_path # استخدام المسار البديل Use the alternative path
-                else:
-                    print(f"Cleanup Error: Alternative path '{alt_path}' also not found.")
-                    self.status_callback(f"Error: Processing completed but final file '{expected_final_path_obj.name}' is missing.")
-                    return # الخروج إذا لم يتم العثور على الملف Exit if file not found
-            else:
-                # لا يمكن التخمين بدون معلومات Cannot guess without info
-                print("Cleanup Error: File not found and no info to guess alternative.")
-                self.status_callback(f"Error: Processing completed but final file '{expected_final_path_obj.name}' is missing.")
-                return # الخروج Exit
-
-        # الآن الملف موجود (إما الأصلي أو البديل) Now the file exists (either original or alternative)
-        current_basename = expected_final_path_obj.name
-        target_basename = current_basename # الاسم المستهدف هو الحالي افتراضيًا Target name is current by default
-
-        # إعادة بناء الاسم المستهدف المثالي بناءً على المعلومات Reconstruct ideal target name based on info
-        if self.last_downloaded_info:
-            base_title = self.last_downloaded_info.get("title", "")
-            base_ext = expected_final_path_obj.suffix.lstrip(".")
-            if self.is_playlist:
-                playlist_index = self.last_downloaded_info.get("playlist_index")
-                # إضافة رقم القائمة إذا وجد Add playlist index if available
-                target_basename = f"{playlist_index}. {base_title}.{base_ext}" if playlist_index is not None else f"{base_title}.{base_ext}"
-            else:
-                target_basename = f"{base_title}.{base_ext}"
-            # **تعديل: استخدام دالة التنظيف المستوردة** **Modification: Use imported clean function**
-            target_basename = clean_filename(target_basename)
-        else:
-            # إذا لم تكن هناك معلومات، فقط نظف الاسم الحالي If no info, just clean the current name
-            # **تعديل: استخدام دالة التنظيف المستوردة** **Modification: Use imported clean function**
-            target_basename = clean_filename(current_basename)
-
-        # بناء المسار الكامل الجديد Build the new full filepath object
-        new_final_filepath_obj = expected_final_path_obj.with_name(target_basename)
-        final_message = f"Download complete: {target_basename}" # رسالة النجاح الافتراضية Default success message
-
-        # إعادة التسمية فقط إذا كان الاسم المستهدف مختلفًا Rename only if target name is different
-        if new_final_filepath_obj != expected_final_path_obj:
-            print(f"Attempting rename: '{current_basename}' -> '{target_basename}'")
-            try:
-                # التأكد من وجود الملف قبل إعادة التسمية Ensure file exists before renaming
-                if expected_final_path_obj.exists():
-                    expected_final_path_obj.rename(new_final_filepath_obj)
-                    print(f"Rename successful: '{new_final_filepath_obj}'")
-                    self._cleaned_up_path = str(new_final_filepath_obj) # تسجيل المسار النظيف Mark cleaned path
-                else:
-                    # حالة نادرة: الملف اختفى قبل إعادة التسمية Rare case: file disappeared before rename
-                    print(f"File disappeared before rename: {expected_final_path_obj}")
-                    final_message = f"Warning: Download ok, but file missing before rename ({current_basename})"
-                    self._cleaned_up_path = None # لم يتم التنظيف Not cleaned
-            except OSError as e:
-                # خطأ أثناء إعادة التسمية (مثل الملف قيد الاستخدام) Error during rename (e.g., file in use)
-                print(f"Error during final rename for '{current_basename}': {e}")
-                final_message = f"Download complete (rename failed): {current_basename}"
-                self._cleaned_up_path = str(expected_final_path_obj) # اعتبر المسار القديم هو النظيف Consider old path as cleaned
-        else:
-            # الاسم كان صحيحًا بالفعل Name was already correct
-            print("Filename already correct. No rename needed.")
-            self._cleaned_up_path = str(expected_final_path_obj) # تسجيل المسار النظيف Mark cleaned path
-
-        # ملاحظة: رسالة الحالة النهائية ("Finished: ...") يتم تحديثها بواسطة الهوك
-        # Note: The final status message ("Finished: ...") is updated by the hook
+    # --- تم حذف دالة _cleanup_final_file --- _cleanup_final_file function removed ---
 
     def run(self):
         """
@@ -499,21 +443,28 @@ class Downloader:
         Entry point to run the download process in a separate thread.
         Handles exceptions and ensures the finished_callback is always called.
         """
-        download_error_occurred = False
-        self._cleaned_up_path = None # التأكد من إعادة تعيينه Ensure it's reset
+        # download_error_occurred لم يعد له استخدام كبير هنا download_error_occurred not very useful here anymore
+        # self._cleaned_up_path = None # تم حذفه Removed
 
         try:
             # تشغيل منطق التحميل الأساسي Run core download logic
             self._download_core()
+            # إذا وصل الكود إلى هنا دون استثناءات من _download_core
+            # If code reaches here without exceptions from _download_core
+            # يمكننا افتراض أن yt-dlp أتم عمله (أو أبلغ عن أخطائه بنفسه)
+            # We can assume yt-dlp finished its job (or reported its own errors)
+            # سيتم استدعاء finished_callback في finally
+            # finished_callback will be called in finally
+
         except DownloadCancelled as e:
             # التعامل مع الإلغاء Handle cancellation
             self.status_callback(str(e))
             print(e)
-            download_error_occurred = True
+            # يعتبر خطأ لأغراض الواجهة Consider an error for UI purposes
         except Exception as e:
-            # التعامل مع أي خطأ فادح غير متوقع Handle any fatal unexpected error
+            # التعامل مع أي خطأ فادح غير متوقع Handle any fatal unexpected error caught here
             self._log_unexpected_error(e, "in main run loop")
-            download_error_occurred = True
+            # يعتبر خطأ لأغراض الواجهة Consider an error for UI purposes
         finally:
             # التأكد من استدعاء الكول باك النهائي دائمًا Ensure final callback is always called
             print("Downloader: Reached finally block, calling finished_callback.")
@@ -525,8 +476,7 @@ class Downloader:
         Logs unexpected errors with traceback and updates status.
         """
         print(f"--- UNEXPECTED ERROR ({context}) ---")
-        traceback.print_exc() # طباعة تتبع الخطأ الكامل Print full traceback
+        traceback.print_exc()
         print("------------------------------------")
-        # تحديث رسالة الحالة برسالة خطأ عامة Update status with a generic error message
         self.status_callback(f"Unexpected Error ({type(e).__name__})! Check logs for details.")
         print(f"Unexpected Error during download ({context}): {e}")
