@@ -65,7 +65,7 @@ class InfoFetcher:
         if self.cancel_event.is_set():
             raise DownloadCancelled(f"Info fetch cancelled {stage}.")
 
-    def _fetch_info_core(self):
+    def _fetch_info_core(self):  # sourcery skip: class-extract-method
         self.status_callback("Fetching information...")
         self.progress_callback(0)
         self._check_cancel("before starting fetch")
@@ -197,6 +197,7 @@ class Downloader:
         return cleaned or "downloaded_file"
 
     def _my_hook(self, d):
+        # sourcery skip: extract-method, hoist-similar-statement-from-if, hoist-statement-from-if
         """Hook لتقدم التحميل مع رسالة حالة متعددة الأسطر ومفصلة."""
         try:
             self._check_cancel("during progress hook")
@@ -523,9 +524,7 @@ class Downloader:
                     )
                     return
             else:
-                print(
-                    f"Cleanup Error: File not found and no info to guess alternative."
-                )
+                print("Cleanup Error: File not found and no info to guess alternative.")
                 self.status_callback(
                     f"Error: Processing completed but final file '{expected_final_path_obj.name}' is missing."
                 )
