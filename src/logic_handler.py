@@ -44,6 +44,10 @@ class LogicHandler:
 
         # البحث عن FFmpeg عند التهيئة Find FFmpeg on initialization
         self.ffmpeg_path = find_ffmpeg()
+        if not self.ffmpeg_path:
+             print("LogicHandler Warning: FFmpeg not found. Some operations like MP3 conversion might fail.")
+             # Optional: You could even pass a warning up to the UI status here
+             # self.status_callback("Warning: FFmpeg not found. MP3 conversion might fail.")
 
         # حدث لإدارة الإلغاء بين الخيوط Event to manage cancellation across threads
         self.cancel_event = threading.Event()
@@ -73,7 +77,9 @@ class LogicHandler:
         # تحقق مبدئي من المدخلات Check inputs first
         if not url:
             self.info_error_callback("URL cannot be empty.")
-            self.finished_callback() # يجب استدعاء finished لإعادة الواجهة لحالتها الطبيعية Must call finished to reset UI
+            # استدعاء finished مهم لإعادة الواجهة لحالتها الطبيعية حتى بعد الخطأ المبدئي
+            # Calling finished is important to reset the UI even after an initial error
+            self.finished_callback()
             return
         # منع تشغيل عمليتين في نفس الوقت Prevent running two operations concurrently
         if self._is_operation_running():
@@ -89,23 +95,24 @@ class LogicHandler:
             success_callback=self.info_success_callback,
             error_callback=self.info_error_callback,
             status_callback=self.status_callback,
-            progress_callback=self.progress_callback, # على الرغم من عدم استخدامه كثيرًا هنا Although not used much here
+            progress_callback=self.progress_callback, # يستخدم لتعيين 0% و 100% Used to set 0% and 100%
             finished_callback=self.finished_callback,
         )
         # إنشاء وتشغيل الخيط Create and start the thread
         self.current_thread = threading.Thread(target=fetcher_instance.run, daemon=True)
         self.current_thread.start()
 
+    # --- تعديل: إزالة quality_format_id ---
     def start_download(
         self,
         url,
         save_path,
         format_choice,
-        quality_format_id,
+        # quality_format_id, <-- Parameter removed
         is_playlist,
         playlist_items,
         selected_items_count,
-        total_playlist_count, # تم التأكد من وجوده Already confirmed present
+        total_playlist_count,
     ):
         """
         يبدأ عملية التحميل في خيط منفصل.
@@ -120,15 +127,16 @@ class LogicHandler:
         if self._is_operation_running():
             return
 
-        print(f"LogicHandler: Starting download... Playlist: {is_playlist}, Selected: {selected_items_count}, Total: {total_playlist_count}")
+        print(f"LogicHandler: Starting download... Playlist: {is_playlist}, Selected: {selected_items_count}, Total: {total_playlist_count}, Format Choice: '{format_choice}'")
         self.cancel_event.clear() # إعادة تعيين حدث الإلغاء Reset cancellation event
 
-        # إنشاء كائن Downloader Create Downloader instance
+        # إنشاء كائن Downloader
+        # --- تعديل: إزالة تمرير quality_format_id ---
         downloader_instance = Downloader(
             url=url,
             save_path=save_path,
-            format_choice=format_choice,
-            quality_format_id=quality_format_id,
+            format_choice=format_choice,             # تمرير الخيار العام Pass general choice
+            # quality_format_id=quality_format_id,  <-- Argument removed
             is_playlist=is_playlist,
             playlist_items=playlist_items,
             selected_items_count=selected_items_count, # تمرير العدد المختار Pass selected count
@@ -155,5 +163,5 @@ class LogicHandler:
             self.cancel_event.set()
         else:
             print("LogicHandler: No operation running to cancel.")
-            # لا تقم بتحديث الحالة إذا لم يكن هناك شيء لإلغائه Don't update status if nothing to cancel
-            # self.status_callback("No operation running to cancel.") # <- يمكن إزالة هذا السطر This line can be removed
+            # لا تقم بتحديث الحالة إذا لم يكن هناك شيء لإلغائه
+            # self.status_callback("No operation running to cancel.") # يمكن إلغاء التعليق إذا أردت
