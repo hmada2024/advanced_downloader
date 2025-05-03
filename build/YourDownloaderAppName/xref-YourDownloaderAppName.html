@@ -4451,6 +4451,7 @@ imported by:
  &#8226;   <a href="#setuptools.depends">setuptools.depends</a>
  &#8226;   <a href="#setuptools.msvc">setuptools.msvc</a>
  &#8226;   <a href="#setuptools.wheel">setuptools.wheel</a>
+ &#8226;   <a href="#src.downloader">src.downloader</a>
  &#8226;   <a href="#subprocess">subprocess</a>
  &#8226;   <a href="#traceback">traceback</a>
  &#8226;   <a href="#typing">typing</a>
@@ -10178,7 +10179,7 @@ imported by:
  &#8226;   <a href="#humanize.lists">humanize.lists</a>
  &#8226;   <a href="#humanize.number">humanize.number</a>
  &#8226;   <a href="#humanize.time">humanize.time</a>
- &#8226;   <a href="#src.logic_operations">src.logic_operations</a>
+ &#8226;   <a href="#src.downloader">src.downloader</a>
  &#8226;   <a href="#src.ui_components.quality_selector">src.ui_components.quality_selector</a>
 
   </div>
@@ -13053,7 +13054,7 @@ imported by:
  &#8226;   <a href="#site">site</a>
  &#8226;   <a href="#socket">socket</a>
  &#8226;   <a href="#socketserver">socketserver</a>
- &#8226;   <a href="#src.logic_operations">src.logic_operations</a>
+ &#8226;   <a href="#src.downloader">src.downloader</a>
  &#8226;   <a href="#src.ui_interface">src.ui_interface</a>
  &#8226;   <a href="#ssl">ssl</a>
  &#8226;   <a href="#subprocess">subprocess</a>
@@ -13627,7 +13628,8 @@ imported by:
  &#8226;   <a href="#setuptools.config.expand">setuptools.config.expand</a>
  &#8226;   <a href="#setuptools.discovery">setuptools.discovery</a>
  &#8226;   <a href="#setuptools.dist">setuptools.dist</a>
- &#8226;   <a href="#src.logic_operations">src.logic_operations</a>
+ &#8226;   <a href="#src.downloader">src.downloader</a>
+ &#8226;   <a href="#src.logic_utils">src.logic_utils</a>
  &#8226;   <a href="#yt_dlp.plugins">yt_dlp.plugins</a>
  &#8226;   <a href="#zipfile._path">zipfile._path</a>
 
@@ -14510,7 +14512,7 @@ imported by:
  &#8226;   <a href="#setuptools.glob">setuptools.glob</a>
  &#8226;   <a href="#setuptools.wheel">setuptools.wheel</a>
  &#8226;   <a href="#shlex">shlex</a>
- &#8226;   <a href="#src.logic_operations">src.logic_operations</a>
+ &#8226;   <a href="#src.logic_utils">src.logic_utils</a>
  &#8226;   <a href="#sre_compile">sre_compile</a>
  &#8226;   <a href="#sre_constants">sre_constants</a>
  &#8226;   <a href="#sre_parse">sre_parse</a>
@@ -19818,11 +19820,39 @@ imported by:
   <a target="code" href="///E:/your_downloader_app/src/__init__.py" type="text/plain"><tt>src</tt></a>
 <span class="moduletype">Package</span>  <div class="import">
 imported by:
-    <a href="#src.exceptions">src.exceptions</a>
+    <a href="#src.downloader">src.downloader</a>
+ &#8226;   <a href="#src.exceptions">src.exceptions</a>
+ &#8226;   <a href="#src.info_fetcher">src.info_fetcher</a>
  &#8226;   <a href="#src.logic_handler">src.logic_handler</a>
- &#8226;   <a href="#src.logic_operations">src.logic_operations</a>
+ &#8226;   <a href="#src.logic_utils">src.logic_utils</a>
  &#8226;   <a href="#src.ui_components">src.ui_components</a>
  &#8226;   <a href="#src.ui_interface">src.ui_interface</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="src.downloader"></a>
+  <a target="code" href="///E:/your_downloader_app/src/downloader.py" type="text/plain"><tt>src.downloader</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#contextlib">contextlib</a>
+ &#8226;   <a href="#humanize">humanize</a>
+ &#8226;   <a href="#os">os</a>
+ &#8226;   <a href="#pathlib">pathlib</a>
+ &#8226;   <a href="#src">src</a>
+ &#8226;   <a href="#src.exceptions">src.exceptions</a>
+ &#8226;   <a href="#src.logic_utils">src.logic_utils</a>
+ &#8226;   <a href="#sys">sys</a>
+ &#8226;   <a href="#time">time</a>
+ &#8226;   <a href="#traceback">traceback</a>
+ &#8226;   <a href="#yt_dlp">yt_dlp</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#src.logic_handler">src.logic_handler</a>
 
   </div>
 
@@ -19838,8 +19868,28 @@ imports:
   </div>
   <div class="import">
 imported by:
+    <a href="#src.downloader">src.downloader</a>
+ &#8226;   <a href="#src.info_fetcher">src.info_fetcher</a>
+ &#8226;   <a href="#src.logic_handler">src.logic_handler</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="src.info_fetcher"></a>
+  <a target="code" href="///E:/your_downloader_app/src/info_fetcher.py" type="text/plain"><tt>src.info_fetcher</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#src">src</a>
+ &#8226;   <a href="#src.exceptions">src.exceptions</a>
+ &#8226;   <a href="#traceback">traceback</a>
+ &#8226;   <a href="#yt_dlp">yt_dlp</a>
+
+  </div>
+  <div class="import">
+imported by:
     <a href="#src.logic_handler">src.logic_handler</a>
- &#8226;   <a href="#src.logic_operations">src.logic_operations</a>
 
   </div>
 
@@ -19851,8 +19901,10 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#src">src</a>
+ &#8226;   <a href="#src.downloader">src.downloader</a>
  &#8226;   <a href="#src.exceptions">src.exceptions</a>
- &#8226;   <a href="#src.logic_operations">src.logic_operations</a>
+ &#8226;   <a href="#src.info_fetcher">src.info_fetcher</a>
+ &#8226;   <a href="#src.logic_utils">src.logic_utils</a>
  &#8226;   <a href="#threading">threading</a>
 
   </div>
@@ -19865,25 +19917,21 @@ imported by:
 </div>
 
 <div class="node">
-  <a name="src.logic_operations"></a>
-  <a target="code" href="///E:/your_downloader_app/src/logic_operations.py" type="text/plain"><tt>src.logic_operations</tt></a>
+  <a name="src.logic_utils"></a>
+  <a target="code" href="///E:/your_downloader_app/src/logic_utils.py" type="text/plain"><tt>src.logic_utils</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
-    <a href="#humanize">humanize</a>
- &#8226;   <a href="#os">os</a>
- &#8226;   <a href="#pathlib">pathlib</a>
+    <a href="#pathlib">pathlib</a>
  &#8226;   <a href="#re">re</a>
  &#8226;   <a href="#src">src</a>
- &#8226;   <a href="#src.exceptions">src.exceptions</a>
  &#8226;   <a href="#sys">sys</a>
- &#8226;   <a href="#time">time</a>
- &#8226;   <a href="#traceback">traceback</a>
  &#8226;   <a href="#yt_dlp">yt_dlp</a>
 
   </div>
   <div class="import">
 imported by:
-    <a href="#src.logic_handler">src.logic_handler</a>
+    <a href="#src.downloader">src.downloader</a>
+ &#8226;   <a href="#src.logic_handler">src.logic_handler</a>
 
   </div>
 
@@ -20590,7 +20638,8 @@ imported by:
  &#8226;   <a href="#socket">socket</a>
  &#8226;   <a href="#socketserver">socketserver</a>
  &#8226;   <a href="#sqlite3.__main__">sqlite3.__main__</a>
- &#8226;   <a href="#src.logic_operations">src.logic_operations</a>
+ &#8226;   <a href="#src.downloader">src.downloader</a>
+ &#8226;   <a href="#src.logic_utils">src.logic_utils</a>
  &#8226;   <a href="#ssl">ssl</a>
  &#8226;   <a href="#statistics">statistics</a>
  &#8226;   <a href="#subprocess">subprocess</a>
@@ -20929,7 +20978,7 @@ imported by:
  &#8226;   <a href="#setuptools.command.egg_info">setuptools.command.egg_info</a>
  &#8226;   <a href="#socketserver">socketserver</a>
  &#8226;   <a href="#sqlite3.dbapi2">sqlite3.dbapi2</a>
- &#8226;   <a href="#src.logic_operations">src.logic_operations</a>
+ &#8226;   <a href="#src.downloader">src.downloader</a>
  &#8226;   <a href="#ssl">ssl</a>
  &#8226;   <a href="#subprocess">subprocess</a>
  &#8226;   <a href="#tarfile">tarfile</a>
@@ -21401,7 +21450,8 @@ imported by:
  &#8226;   <a href="#pydoc">pydoc</a>
  &#8226;   <a href="#site">site</a>
  &#8226;   <a href="#socketserver">socketserver</a>
- &#8226;   <a href="#src.logic_operations">src.logic_operations</a>
+ &#8226;   <a href="#src.downloader">src.downloader</a>
+ &#8226;   <a href="#src.info_fetcher">src.info_fetcher</a>
  &#8226;   <a href="#threading">threading</a>
  &#8226;   <a href="#tkinter">tkinter</a>
  &#8226;   <a href="#unittest.case">unittest.case</a>
@@ -23306,7 +23356,9 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#src.logic_operations">src.logic_operations</a>
+    <a href="#src.downloader">src.downloader</a>
+ &#8226;   <a href="#src.info_fetcher">src.info_fetcher</a>
+ &#8226;   <a href="#src.logic_utils">src.logic_utils</a>
  &#8226;   <a href="#yt_dlp">yt_dlp</a>
  &#8226;   <a href="#yt_dlp.YoutubeDL">yt_dlp.YoutubeDL</a>
  &#8226;   <a href="#yt_dlp.aes">yt_dlp.aes</a>
